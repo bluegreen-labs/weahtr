@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import yaml
 import cv2
-import utils
+from utils import *
 
 class template:
   
@@ -18,32 +18,37 @@ class template:
       except:
         print("No yaml config file at this location...")
     
+    # split out output directory
+    out_dir = self.config['output']
+    
     # check and create output directories
-    if not os.path.exists(os.path.join(self.config['output'], 'homography')):
-      os.makedirs(os.path.join(self.config['output'], 'homography'), exist_ok=True)
+    if not os.path.exists(os.path.join(out_dir, 'homography')):
+      os.makedirs(os.path.join(out_dir, 'homography'), exist_ok=True)
       
-    if not os.path.exists(os.path.join(self.config['output'], 'preview')):
-      os.makedirs(os.path.join(self.config['output'], 'preview'), exist_ok=True)  
+    if not os.path.exists(os.path.join(out_dir, 'preview')):
+      os.makedirs(os.path.join(out_dir, 'preview'), exist_ok=True)  
     
-    if not os.path.exists(os.path.join(self.config['output'], 'labels')):
-      os.makedirs(os.path.join(self.config['output'], 'labels'), exist_ok=True)
+    if not os.path.exists(os.path.join(out_dir, 'labels')):
+      os.makedirs(os.path.join(out_dir, 'labels'), exist_ok=True)
     
-    if not os.path.exists(os.path.join(self.config['output'], 'logs')):
-      os.makedirs(os.path.join(self.config['output'], 'logs'), exist_ok=True)
+    if not os.path.exists(os.path.join(out_dir, 'logs')):
+      os.makedirs(os.path.join(out_dir, 'logs'), exist_ok=True)
     
     # create output paths
-    self.homography_path = os.path.join(self.config['output'], 'homography')
-    self.preview_path = os.path.join(self.config['output'], 'preview')
-    self.label_path = os.path.join(self.config['output'], 'labels')
-    self.log_path = os.path.join(self.config['output'], 'labels')
+    self.homography_path = os.path.join(out_dir, 'homography')
+    self.preview_path = os.path.join(out_dir, 'preview')
+    self.label_path = os.path.join(out_dir, 'labels')
+    self.log_path = os.path.join(out_dir, 'labels')
     
-    # set basic info
+    # set basic info such as the list
+    # of images to consider and the template to use
     self.images = images
     self.template = template
   
   #--- private functions ----
   
   def __match_preview(self, image, template, pathname):
+    
     # split band and crop
     _,_,image = cv2.split(image)
     image = self.__binarize(image)
@@ -350,6 +355,9 @@ class template:
   def label(self, guides):
     
     # load template guides
+    guides = load_guides(guides, "format_1")
+    
+    print(guides)
     
     # read template
     template = cv2.imread(self.template, cv2.IMREAD_GRAYSCALE)
