@@ -1,0 +1,27 @@
+name: weahtr
+channels:
+  - conda-forge
+  - defaults
+  - pytorch
+  - nvidia
+
+dependencies:
+  - python>=3.11
+  - conda>=23.5.2
+  - matplotlib
+  - setuptools
+  - requests
+  - pandas
+  - pip
+  - transformers
+  - wheel
+  - scipy
+  - numpy
+  - opencv
+  - easyocr
+  - pytesseract
+  - pytorch
+  - torchvision
+  - torchaudio
+  - pytorch-cuda=12.1
+  - pyyaml

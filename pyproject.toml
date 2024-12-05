@@ -1,0 +1,20 @@
+[project]
+name = "weaHTR"
+version = "0.0.1"
+authors = [
+  {name="Koen Hufkens",
+   email="koen.hufkens@gmail.com" 
+   },
+]
+description = "Weather data handwritten text recognition transcription framework"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: SSPL-1.0 License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/bluegreen-labs/weaHTRpy"
+Issues = "https://github.com/bluegreen-labs/weaHTRpy/issues"

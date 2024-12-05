@@ -1,0 +1,34 @@
+# template matching settings
+# including the two methods,
+# including a fft and feature based
+# method
+---
+
+# where to output analysis data
+# this includes cropping and
+# template matching settings
+# as well as the ML labels
+# and log files (failed attempts)
+output: /docker_data_dir/output/
+
+# crop the image automatically
+# for black matte (False or True)
+# note the capital starting letter
+crop: False
+
+# write template matching previews
+preview: True
+
+# these set hard bounds on some of the template matching methods
+# for example it limits rotation over certain angles
+# as those would be unrealistic (given a good data
+# acquisition protocol)
+features:
+  max_features: 25000 # maximum number of features to generate
+  good_match: 0.8 # fraction of good matches to consider
+  scale_ratio: 0.5 # scale factor of image inputs - to speed up processing
+  reference_distance: 20 # allowed tolerance (%) between referenced features
+
+fft:
+ rotation_tolerance: 10 # only allow rotations of 10 degrees or less
+ translation_tolerance: 500 # only allow translations X/Y of 500px or less
