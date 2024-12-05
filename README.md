@@ -54,13 +54,13 @@ import glob
 import weahtr
 
 # list files to process
-images =  glob.glob("/workspace/format_1/*.jpg", recursive=True)
+images =  glob.glob("/workspace/demo_input/format_1/*.jpg", recursive=True)
 
 # initiate the setup
 t = template.template(
   images = images,
-  template = "/docker_data_dir/input/format_1.jpg",
-  config = "/docker_data_dir/format_config.yml"
+  template = "/docker_data_dir/demo_input/format_1.jpg",
+  config = "/docker_data_dir/demo_input/format_config.yml"
   )
 
 # match all templates, write homography datat to file
