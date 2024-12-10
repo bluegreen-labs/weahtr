@@ -1,29 +1,128 @@
+import os
 import numpy as np
 import cv2
+import math
+import scipy.ndimage.interpolation as ndii
 
-def binarize(
-  im: np.ndarray
-    ) -> np.ndarray:
+#--- log-polar fft template matching utility functions ---
+
+def match_size(image, template):
+  
+    # get max dimensions
+    max_rows = max(image.shape[0], template.shape[0])
+    max_cols = max(image.shape[1], template.shape[1])
     
-    if not isinstance(im, np.ndarray) or im.ndim != 2:
-        raise ValueError("Input image must be a 2D grayscale NumPy array.")
-    
-    # Adaptive thresholding
-    im = cv2.adaptiveThreshold(
-        im,
-        255,
-        cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,
-        11,
-        2
+    # pad to max dimensions with a black border for the
+    # image a white one for the template - pad to the right
+    # and at the bottom, keeping the image top-left
+    image = cv2.copyMakeBorder(
+      image, 0, max_rows - image.shape[0], 0, max_cols - image.shape[1],
+      cv2.BORDER_CONSTANT,
+      value = 0
     )
     
-    # Median blurring
-    im = cv2.medianBlur(im, 3)
+    template = cv2.copyMakeBorder(
+      template, 0, max_rows - template.shape[0], 0, max_cols - template.shape[1],
+      cv2.BORDER_CONSTANT,
+      value = 1
+    )
     
-    if verbose:
-        print("Applied adaptive thresholding and median blurring.")
+    return (image, template)
+
+# Central point for running FFT
+def calculate_fft(img):
+  imgFft = cv2.dft(np.float32(img),flags = cv2.DFT_COMPLEX_OUTPUT)
+  imgFftShifted = np.fft.fftshift(imgFft)
+  imgMags = cv2.magnitude(imgFftShifted[:,:,0],imgFftShifted[:,:,1])
+  return (imgFft, imgFftShifted, imgMags)
+
+# this function will calculates parameters for log polar transformation
+# (center of transformation, angle step and log base)
+def lp_parameters(img):
+  centerTrans = [math.floor((img.shape[0] + 1) / 2), math.floor((img.shape[1] + 1 ) / 2)]
+  maxDiff = np.maximum(centerTrans, np.asarray(img.shape) - centerTrans)
+  maxDistance = ((maxDiff[0] ** 2 + maxDiff[1] ** 2 ) ** 0.5)
+  logBase = math.exp(math.log(maxDistance) / img.shape[1])
+  angleStep = ( 1.0 * math.pi ) / img.shape[0]
+  return (centerTrans, angleStep, logBase)
+
+# converts image to its log polar representation
+# returns the log polar representation and log base
+def lp(img, centerTrans, angleStep, logBase):
+  
+  # check cartToPolar() in opencv to replace some of the logic
+  
+  anglesMap = np.zeros(img.shape, dtype=np.float64)
+  anglesVector = -np.linspace(0, np.pi, img.shape[0], endpoint=False)
+  anglesMap.T[:] = anglesVector
+  radiusMap = np.zeros(img.shape, dtype=np.float64)
+  radiusVector = np.power(logBase, np.arange(img.shape[1], dtype=np.float64)) - 1.0
+  radiusMap[:] = radiusVector
+  x = radiusMap * np.sin(anglesMap) + centerTrans[1]
+  y = radiusMap * np.cos(anglesMap) + centerTrans[0]
+  outputImg = np.zeros(img.shape)
+  ndii.map_coordinates(img, [x, y], output=outputImg)
+  np.float32(outputImg)
+  return outputImg
+
+def phase_correlation(img_orig, img_transformed):
+  orig_conj = np.copy(img_orig)
+  orig_conj[:,:,1] = -orig_conj[:,:,1]
+  orig_mags = cv2.magnitude(img_orig[:,:,0],img_orig[:,:,1])
+  img_trans_mags = cv2.magnitude(img_transformed[:,:,0],img_transformed[:,:,1])
+  realPart = (orig_conj[:,:,0] * img_transformed[:,:,0] - orig_conj[:,:,1] * img_transformed[:,:,1]) / (orig_mags * img_trans_mags)
+  imaginaryPart = (orig_conj[:,:,0] * img_transformed[:,:,1] + orig_conj[:,:,1] * img_transformed[:,:,0]) / ( orig_mags * img_trans_mags)
+  result = np.dstack((realPart, imaginaryPart))
+  result_idft = cv2.idft(result)
+  result_mags = cv2.magnitude(result_idft[:,:,0],result_idft[:,:,1])
+  return np.unravel_index(np.argmax(result_mags), result_mags.shape)
+  
+#--- general utility functions ---
+
+def preview(image, template, path):
+  
+  # split band and crop
+  image = binarize(image)
+  image = image[0:template.shape[0],0:template.shape[1]]
     
-    return im
+  # construct preview
+  preview = np.full((image.shape[0],image.shape[1],3),255, dtype=np.uint8)
+  preview[:,:,1] = image
+  preview[:,:,2] = template
+  
+  # resize to fifth of the original
+  preview = cv2.resize(preview, None, fx=0.2, fy = 0.2)
+    
+  # write to preview path
+  cv2.imwrite(path,preview)
+  
+def error_log(path, prefix, content):
+  filename = os.path.join(path, prefix + "_error_log.txt")
+  with open(filename, "a") as text_file:
+     text_file.write(content + "\n")
+  
+# binarize the image
+def binarize(image):
+  
+  if len(image.shape) == 3:
+    # convert images to grayscale
+    # using red channel for max
+    # constrast
+    _,_,image = cv2.split(image)
+  
+  # Adaptive thresholding
+  image = cv2.adaptiveThreshold(
+      image,
+      255,
+      cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,
+      11,
+      2
+  )
+
+  # Median blurring
+  image = cv2.medianBlur(image, 5)
+  
+  return image
 
 def load_guides(filename, mask_name):
    # check if the guides file can be read

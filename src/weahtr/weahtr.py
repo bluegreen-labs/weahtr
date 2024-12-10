@@ -7,7 +7,8 @@ from utils import *
 
 class template:
   
-  # initiating routine
+  # initiating instance, with unique elements
+  # dynamically set
   def __init__(self, images, template, config):
     
     # read in template matching config
@@ -38,7 +39,7 @@ class template:
     self.homography_path = os.path.join(out_dir, 'homography')
     self.preview_path = os.path.join(out_dir, 'preview')
     self.label_path = os.path.join(out_dir, 'labels')
-    self.log_path = os.path.join(out_dir, 'labels')
+    self.log_path = os.path.join(out_dir, 'logs')
     
     # set basic info such as the list
     # of images to consider and the template to use
@@ -47,52 +48,17 @@ class template:
   
   #--- private functions ----
   
-  def __match_preview(self, image, template, pathname):
+  ##--- cropping function ----
     
-    # split band and crop
-    _,_,image = cv2.split(image)
-    image = self.__binarize(image)
-    image = image[0:template.shape[0],0:template.shape[1]]
-      
-    # construct preview
-    preview = np.full((image.shape[0],image.shape[1],3),255, dtype=np.uint8)
-    preview[:,:,1] = image
-    preview[:,:,2] = template
-    
-    # resize to fifth of the original
-    preview = cv2.resize(preview, None, fx=0.2, fy = 0.2)
-      
-    # write to preview path
-    cv2.imwrite(os.path.join(
-      self.preview_path,
-      pathname + '_match.jpg'),
-      preview
-    )
-  
-  def __error_log(self, path, prefix, content):
-    filename = os.path.join(path, prefix + "_error_log.txt")
-    with open(filename, "a") as text_file:
-       text_file.write(content + "\n")
-  
-  # binarize the image
-  def __binarize(self, image):
-    # Adaptive thresholding
-    image = cv2.adaptiveThreshold(
-        image,
-        255,
-        cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,
-        11,
-        2
-    )
-    
-    # Median blurring
-    image = cv2.medianBlur(image, 3)
-    
-    return image
-  
   # static variables and private
   # internal functions
   def __inner_crop(self, image):
+
+    # convert to grayscale (red channel)
+    try:
+      _,_,gray = cv2.split(image)
+    except:
+      gray = image
       
     # black border to make it work
     # on white matte images
@@ -102,13 +68,7 @@ class template:
       None,
       0
     )
-    
-    # convert to grayscale (red channel)
-    try:
-      _,_,gray = cv2.split(image)
-    except:
-      gray = image
-    
+
     # adaptive threshold the image
     ret, bw = cv2.threshold(
       gray, 0, 255,
@@ -191,8 +151,82 @@ class template:
     # return the destination results
     return h
     
-  #def __fft(self):
-      # code goes here
+  def __fft(self, image, template):
+    
+    # binarize
+    image = binarize(image)
+    template = binarize(template)
+    
+    # scale images for speed
+    # and general accuracy
+    image = cv2.resize(
+      image,
+      None,
+      fx = self.config['scale_ratio'], 
+      fy = self.config['scale_ratio']
+      )
+      
+    template = cv2.resize(
+      template,
+      None,
+      fx = self.config['scale_ratio'], 
+      fy = self.config['scale_ratio']
+    )
+    
+    # fft transforms
+    fft_img, fft_shifted_img, img_mag = calculate_fft(image)
+    fft_template, fft_shifted_template, template_mag = calculate_fft(template)
+
+    # calculate fft parameters
+    center, angles, base = lp_parameters(img_mag)
+    
+    # log-polar transform
+    image_lp = lp(img_mag, center, angles, base)
+    template_lp = lp(template_mag, center, angles, base)
+    
+    # discrete fourier transform
+    image_lp_complex = cv2.dft(image_lp,flags = cv2.DFT_COMPLEX_OUTPUT)
+    template_lp_complex = cv2.dft(template_lp,flags = cv2.DFT_COMPLEX_OUTPUT)
+    
+    # check order things
+    angle, scale = phase_correlation(template_lp_complex, image_lp_complex)
+
+    scale = base ** scale
+    
+    angle = -(float(angle) * 180.0 ) / image_lp_complex.shape[0]
+    if angle < - 45:
+        angle += 180
+    else:
+        if angle > 90.0:
+            angle -= 180
+    
+    RS = cv2.getRotationMatrix2D((center[0], center[1]), angle, scale)
+    RS = np.vstack([RS, [0,0,1]])
+    image_RS = cv2.warpPerspective(image, RS, (image.shape[1], image.shape[0]))
+    
+    _ , fft_shifted_img_new, _ = calculate_fft(image_RS)
+    
+    y, x = phase_correlation(fft_shifted_img_new, fft_shifted_template)
+    
+    if x > image.shape[0] // 2:
+        x -= image.shape[0]
+    if y > image.shape[1] // 2:
+        y -= image.shape[1]
+
+    T = np.float32([[1,0,-x],[0,1,-y],[0,0,1]])
+    
+    # calculate combined homography
+    h = np.matmul(T,RS)
+    
+    # set scale ratio
+    scale_ratio = self.config['scale_ratio']
+    
+    # correct for scale factor
+    h = h * [[1,1,1/scale_ratio],
+            [1,1,1/scale_ratio],
+            [scale_ratio, scale_ratio,1]]
+    
+    return h
 
   def __features(self, image, template):
     
@@ -206,20 +240,20 @@ class template:
     image = cv2.resize(
       image,
       None,
-      fx = self.config['features']['scale_ratio'], 
-      fy = self.config['features']['scale_ratio']
+      fx = self.config['scale_ratio'], 
+      fy = self.config['scale_ratio']
       )
       
     template = cv2.resize(
       template,
       None,
-      fx = self.config['features']['scale_ratio'], 
-      fy = self.config['features']['scale_ratio']
+      fx = self.config['scale_ratio'], 
+      fy = self.config['scale_ratio']
     )
     
     # binarize
-    image = self.__binarize(image)
-    template = self.__binarize(template)
+    image = binarize(image)
+    template = binarize(template)
     
     # Detect ORB features and compute descriptors
     orb = cv2.ORB_create(self.config['features']['max_features'])
@@ -253,9 +287,7 @@ class template:
     refdist = abs(p1 - p2)
     
     # Assumes that the size of input and reference data don't
-    # differ more than 20% of their total axis size
-    # check axis / order !!
-    # USE QA/QC values
+    # differ more than X% of their total axis size
     reference_distance = (self.config['features']['reference_distance'] / 100)
     
     refdist.loc[:,0] = np.float32(refdist.loc[:,0] < (image.shape[1] * reference_distance))
@@ -268,10 +300,9 @@ class template:
     h, mask = cv2.findHomography(points1, points2, cv2.RANSAC)
     
     # set scale ratio
-    scale_ratio = self.config['features']['scale_ratio']
+    scale_ratio = self.config['scale_ratio']
     
-    # correct for scale factor, only works if both the template
-    # and the matching image are of the same size
+    # correct for scale factor
     h = h * [[1,1,1/scale_ratio],
              [1,1,1/scale_ratio],
              [scale_ratio, scale_ratio,1]]
@@ -285,7 +316,7 @@ class template:
   # files to disk to speed up (repeated)
   # processing
   
-  def match(self, method):
+  def match(self, method, force = False):
     
     # read template
     template = cv2.imread(self.template, cv2.IMREAD_GRAYSCALE)
@@ -298,27 +329,32 @@ class template:
       
       # read current image
       im = cv2.imread(image)
+      orig = im
       
       if self.config['crop']:
         
+        # set crop file
+        h_crop_file = os.path.join(self.homography_path, pathname + '_crop.txt')
+
+        # can't force cropping on fft
+        if method == "fft":
+          force = False
+        
         # check if crop homography file exists
         # in output location
-        if not os.path.exists(h_file):
+        if not os.path.exists(h_crop_file) or force:
 
           # calculate and save cropping homography
           try:
-            h = self.__inner_crop(im)
+            h_crop = self.__inner_crop(im)
+            np.savetxt(h_crop_file, h_crop, delimiter=",")
           except:
             print("Cropping failed... skipping file")
-            self.__error_log(self.log_path, "cropping", image)
-            next
-          
-          #h_file = os.path.join(self.homography_path, pathname + '_crop.txt')
-          #np.savetxt(h_file, h, delimiter=",")
-
+            error_log(self.log_path, "cropping", image)
+            continue
         else:
           # read homography from file if available
-          h = np.genfromtxt(h_file, delimiter=',')
+          h_crop = np.genfromtxt(h_crop_file, delimiter=',')
 
         # pad the image to account for
         # white matte setups
@@ -330,7 +366,9 @@ class template:
         )
 
         # crop using cropping homography
-        im = cv2.warpPerspective(im, h, None)
+        im = cv2.warpPerspective(im, h_crop, None)
+      
+      #cv2.imwrite(os.path.join(self.preview_path, pathname + "_test.jpg"), im)
     
       # template match the cropped image to
       # a reference template using a method of choice
@@ -338,26 +376,35 @@ class template:
         if method == "features":
           h = self.__features(im, template)
         else:
-          print("bla")
+          # match image sizes
+          im, template_new = match_size(im, template)
+          h = self.__fft(im, template_new)
       except:
-        self.__error_log(self.log_path, "matching", image)
-        next
+        error_log(self.log_path, "matching", image)
+        continue
       
+      # save homography file
       h_file = os.path.join(self.homography_path, pathname + '_match.txt')
       np.savetxt(h_file, h, delimiter=",")
       
       # output preview on request
       if self.config['preview']:
+        
+        # process using homography
         dst = cv2.warpPerspective(im, h, None)
-        self.__match_preview(dst, template, pathname)
+        
+        # generate preview
+        preview(
+          dst,
+          template,
+          os.path.join(self.preview_path, pathname + ".jpg")
+        )
         
   # label matched templates
   def label(self, guides):
     
     # load template guides
     guides = load_guides(guides, "format_1")
-    
-    print(guides)
     
     # read template
     template = cv2.imread(self.template, cv2.IMREAD_GRAYSCALE)
@@ -375,20 +422,36 @@ class template:
       # format the homography file to use for
       # image deformation
       h_file = os.path.join(self.homography_path, pathname + '_match.txt')
-
-      # check if crop homography file exists
+      h_file_crop = os.path.join(self.homography_path, pathname + '_crop.txt')
+      
+      # if crop is desired, check for crop homography file
+      # and apply homography
+      if self.config['crop']:
+        if os.path.exists(h_file_crop):
+          # read homography file
+          h_crop = np.genfromtxt(h_file, delimiter=',')
+          im = cv2.warpPerspective(im, h_crop, None)
+        else:
+          print("no cropping homography found, skipping " + image)
+          continue
+      
+      # check if matching homography file exists
       # in output location
       if os.path.exists(h_file):
         
         # read homography file
         h = np.genfromtxt(h_file, delimiter=',')
         
-        # warp image
-        dst = cv2.warpPerspective(im, h, None)
+        if method == "fft":
+          im, _ = match_size(im, template)
+          dst = cv2.warpPerspective(im, h, None)
+        else:
+          dst = cv2.warpPerspective(im, h, None)
+        
         dst = dst[0:template.shape[0],0:template.shape[1]]
         
       else:
-        print("Skipping, no template match found for file: " + image)
-        next
+        print("No template matching homography found, skipping: " + image)
+        continue
         
     print("Done")

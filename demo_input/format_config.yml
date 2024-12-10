@@ -14,7 +14,11 @@ output: /docker_data_dir/output/
 # crop the image automatically
 # for black matte (False or True)
 # note the capital starting letter
-crop: False
+crop: True
+
+# scale factor of image inputs - to speed up processing
+# and increase accuracy
+scale_ratio: 0.5
 
 # write template matching previews
 preview: True
@@ -25,8 +29,7 @@ preview: True
 # acquisition protocol)
 features:
   max_features: 25000 # maximum number of features to generate
-  good_match: 0.8 # fraction of good matches to consider
-  scale_ratio: 0.5 # scale factor of image inputs - to speed up processing
+  good_match: 0.5 # fraction of good matches to consider
   reference_distance: 20 # allowed tolerance (%) between referenced features
 
 fft:
