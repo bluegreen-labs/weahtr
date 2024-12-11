@@ -4,6 +4,13 @@
 # method
 ---
 
+#--- general settings ---
+
+# the configuration profile name
+# set this to a unique value per
+# profile
+profile_name: "format_1"
+
 # where to output analysis data
 # this includes cropping and
 # template matching settings
@@ -11,13 +18,13 @@
 # and log files (failed attempts)
 output: /docker_data_dir/output/
 
-# crop the image automatically
-# for black matte (False or True)
-# note the capital starting letter
-crop: True
+#--- template matching settings ---
 
 # scale factor of image inputs - to speed up processing
-# and increase accuracy
+# and increase accuracy, the larger the table on the image
+# the smaller this value can be
+# for an almost full covered image a value of 0.25 is good
+# for tables covering less 0.5 yields good results
 scale_ratio: 0.5
 
 # write template matching previews
@@ -30,8 +37,10 @@ preview: True
 features:
   max_features: 25000 # maximum number of features to generate
   good_match: 0.5 # fraction of good matches to consider
-  reference_distance: 20 # allowed tolerance (%) between referenced features
 
 fft:
  rotation_tolerance: 10 # only allow rotations of 10 degrees or less
- translation_tolerance: 500 # only allow translations X/Y of 500px or less
+ translation_tolerance: 1000 # only allow translations X/Y of 500px or less
+ scale_tolerance: 3
+
+#--- machine learning settings ---

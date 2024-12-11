@@ -3,6 +3,8 @@ import numpy as np
 import pandas as pd
 import yaml
 import cv2
+import logging
+from tqdm import tqdm
 from utils import *
 
 class template:
@@ -32,194 +34,110 @@ class template:
     if not os.path.exists(os.path.join(out_dir, 'labels')):
       os.makedirs(os.path.join(out_dir, 'labels'), exist_ok=True)
     
-    if not os.path.exists(os.path.join(out_dir, 'logs')):
-      os.makedirs(os.path.join(out_dir, 'logs'), exist_ok=True)
-    
     # create output paths
     self.homography_path = os.path.join(out_dir, 'homography')
     self.preview_path = os.path.join(out_dir, 'preview')
     self.label_path = os.path.join(out_dir, 'labels')
-    self.log_path = os.path.join(out_dir, 'logs')
+    
+    # create log list
+    self.log = []
+    
+    # create homography dictionary
+    self.homography = {}
+    self.method = []
     
     # set basic info such as the list
     # of images to consider and the template to use
     self.images = images
     self.template = template
-  
+    
   #--- private functions ----
-  
-  ##--- cropping function ----
-    
-  # static variables and private
-  # internal functions
-  def __inner_crop(self, image):
-
-    # convert to grayscale (red channel)
-    try:
-      _,_,gray = cv2.split(image)
-    except:
-      gray = image
-      
-    # black border to make it work
-    # on white matte images
-    image = cv2.copyMakeBorder(
-      image, 500, 500, 500, 500,
-      cv2.BORDER_CONSTANT,
-      None,
-      0
-    )
-
-    # adaptive threshold the image
-    ret, bw = cv2.threshold(
-      gray, 0, 255,
-      cv2.THRESH_BINARY + cv2.THRESH_OTSU
-    )
-    
-    # first define a working kernel
-    kernel = np.ones((3,3),np.uint8)
-    
-    # find morphological edges using the kernel
-    # and five (5) iterations of the routine
-    edged = cv2.morphologyEx(
-      bw,
-      cv2.MORPH_CLOSE,
-      kernel,
-      iterations = 5
-    )
-    
-    # from this image which is all edges extract
-    # the contours of this center area
-    (contours, _) = cv2.findContours(
-      edged,
-      cv2.RETR_LIST,
-      cv2.CHAIN_APPROX_NONE
-    )
-    
-    # order these by length and use the longest one
-    # to create a bounding rectangle / polygon
-    contours = sorted(contours, key=cv2.contourArea, reverse=True)
-    
-    # get approximate contour
-    for c in contours:
-        p = cv2.arcLength(c, True)
-        
-        # 0.02 is the epsilon factor which determines
-        # the reduction in complexity
-        # which stops when the polygon has only 4 points
-        corners = cv2.approxPolyDP(c, 0.02 * p, True)
-        
-        if len(corners) != 4:
-            raise ValueError("Sheet is not defined by four corners.")
-        else:
-          break
-    
-    # reshuffle corner coordinates
-    corners = corners.reshape((4,2))
-    corners_new = np.zeros((4,2),dtype = np.float32)
-
-    add = corners.sum(1)
-    corners_new[0] = corners[np.argmin(add)]
-    corners_new[2] = corners[np.argmax(add)]
-
-    diff = np.diff(corners,axis = 1)
-    corners_new[1] = corners[np.argmin(diff)]
-    corners_new[3] = corners[np.argmax(diff)]
-    
-    # reshuffle coordinates to a set
-    # of points to use in the coordinate
-    # transform mapping
-    x = corners_new[:,0]
-    y = corners_new[:,1]
-    w = int(max(x) - min(x))
-    h = int(max(y) - min(y))
-    x = int(min(x))
-    y = int(min(y))
-
-    # original coordinate references
-    pts2 = np.float32(
-      [[0,0],
-      [image.shape[1],0],
-      [image.shape[1],image.shape[0]],
-      [0,image.shape[0]]]
-    )
-    
-    # homography calculation based upon the approximate
-    # location of the bounding box of the sheet and
-    # the original dimensions
-    h = cv2.getPerspectiveTransform(corners_new, pts2)
-    
-    # return the destination results
-    return h
     
   def __fft(self, image, template):
+    
+    # set scale ratio
+    scale_ratio = self.config['scale_ratio']
     
     # binarize
     image = binarize(image)
     template = binarize(template)
     
     # scale images for speed
-    # and general accuracy
     image = cv2.resize(
       image,
       None,
-      fx = self.config['scale_ratio'], 
-      fy = self.config['scale_ratio']
+      fx = scale_ratio, 
+      fy = scale_ratio
       )
       
     template = cv2.resize(
       template,
       None,
-      fx = self.config['scale_ratio'], 
-      fy = self.config['scale_ratio']
+      fx = scale_ratio, 
+      fy = scale_ratio
     )
     
     # fft transforms
-    fft_img, fft_shifted_img, img_mag = calculate_fft(image)
-    fft_template, fft_shifted_template, template_mag = calculate_fft(template)
+    fft_img, img_mag = calculate_fft(image)
+    fft_template, template_mag = calculate_fft(template)
 
     # calculate fft parameters
-    center, angles, base = lp_parameters(img_mag)
+    center = [math.floor((img_mag.shape[0] + 1) / 2), math.floor((img_mag.shape[1] + 1 ) / 2)]
+    max_val = np.maximum(center, np.asarray(img_mag.shape) - center)
+    max_distance = ((max_val[0] ** 2 + max_val[1] ** 2 ) ** 0.5)
+    base = math.exp(math.log(max_distance) / img_mag.shape[1])
+    angles = ( 1.0 * math.pi ) / img_mag.shape[0]
     
     # log-polar transform
-    image_lp = lp(img_mag, center, angles, base)
-    template_lp = lp(template_mag, center, angles, base)
-    
-    # discrete fourier transform
-    image_lp_complex = cv2.dft(image_lp,flags = cv2.DFT_COMPLEX_OUTPUT)
-    template_lp_complex = cv2.dft(template_lp,flags = cv2.DFT_COMPLEX_OUTPUT)
+    # check warpPolar in opencv
+    image_lp = logpolar(img_mag, center, angles, base)
+    template_lp = logpolar(template_mag, center, angles, base)
     
     # check order things
-    angle, scale = phase_correlation(template_lp_complex, image_lp_complex)
-
+    # check phaseCorrelation in opencv
+    angle, scale = phase_correlation(template_lp, image_lp)
     scale = base ** scale
     
-    angle = -(float(angle) * 180.0 ) / image_lp_complex.shape[0]
+    # conversion to degrees
+    angle = -(float(angle) * 180.0 ) / image_lp.shape[0]
+    
+    # correct range
     if angle < - 45:
         angle += 180
     else:
         if angle > 90.0:
             angle -= 180
     
+    # check scale and rotation values before proceeding
+    if scale > self.config['fft']['scale_tolerance']:
+      raise ValueError('Scale value out of range')
+    
+    if abs(angle) > self.config['fft']['rotation_tolerance']:
+      raise ValueError('Rotation value out of range')
+    
     RS = cv2.getRotationMatrix2D((center[0], center[1]), angle, scale)
     RS = np.vstack([RS, [0,0,1]])
     image_RS = cv2.warpPerspective(image, RS, (image.shape[1], image.shape[0]))
     
-    _ , fft_shifted_img_new, _ = calculate_fft(image_RS)
-    
-    y, x = phase_correlation(fft_shifted_img_new, fft_shifted_template)
+    fft_img_new, _ = calculate_fft(image_RS)
+    y, x = phase_correlation(fft_img_new, fft_template)
     
     if x > image.shape[0] // 2:
         x -= image.shape[0]
     if y > image.shape[1] // 2:
         y -= image.shape[1]
+    
+    # validate translation values
+    translation_threshold = self.config['fft']['translation_tolerance'] * scale_ratio
+    
+    if x > translation_threshold or y > translation_threshold:
+      raise ValueError('Translation values out of range')
 
+    # create translation matrix
     T = np.float32([[1,0,-x],[0,1,-y],[0,0,1]])
     
     # calculate combined homography
     h = np.matmul(T,RS)
-    
-    # set scale ratio
-    scale_ratio = self.config['scale_ratio']
     
     # correct for scale factor
     h = h * [[1,1,1/scale_ratio],
@@ -230,30 +148,28 @@ class template:
 
   def __features(self, image, template):
     
-    # convert images to grayscale
-    # using red channel for max
-    # constrast
-    _,_,image = cv2.split(image)
+    # set scale ratio
+    scale_ratio = self.config['scale_ratio']
+    
+    # binarize
+    image = binarize(image)
+    template = binarize(template)
     
     # scale images for speed
     # and general accuracy
     image = cv2.resize(
       image,
       None,
-      fx = self.config['scale_ratio'], 
-      fy = self.config['scale_ratio']
+      fx = scale_ratio, 
+      fy = scale_ratio
       )
       
     template = cv2.resize(
       template,
       None,
-      fx = self.config['scale_ratio'], 
-      fy = self.config['scale_ratio']
+      fx = scale_ratio, 
+      fy = scale_ratio
     )
-    
-    # binarize
-    image = binarize(image)
-    template = binarize(template)
     
     # Detect ORB features and compute descriptors
     orb = cv2.ORB_create(self.config['features']['max_features'])
@@ -278,29 +194,9 @@ class template:
     for i, match in enumerate(matches):
       points1[i, :] = keypoints1[match.queryIdx].pt
       points2[i, :] = keypoints2[match.trainIdx].pt
-  
-    # Prune reference points based upon distance between
-    # key points. This assumes a fairly good alignment to start with
-    # due to the protocol used
-    p1 = pd.DataFrame(data=points1)
-    p2 = pd.DataFrame(data=points2)
-    refdist = abs(p1 - p2)
-    
-    # Assumes that the size of input and reference data don't
-    # differ more than X% of their total axis size
-    reference_distance = (self.config['features']['reference_distance'] / 100)
-    
-    refdist.loc[:,0] = np.float32(refdist.loc[:,0] < (image.shape[1] * reference_distance))
-    refdist.loc[:,1] = np.float32(refdist.loc[:,1] < (image.shape[0] * reference_distance))
-    refdist = refdist.sum(axis = 1) == 2
-    points1 = points1[refdist]
-    points2 = points2[refdist]
     
     # Find homography
     h, mask = cv2.findHomography(points1, points2, cv2.RANSAC)
-    
-    # set scale ratio
-    scale_ratio = self.config['scale_ratio']
     
     # correct for scale factor
     h = h * [[1,1,1/scale_ratio],
@@ -310,18 +206,159 @@ class template:
     # return matched image and ancillary data
     return h
   
+  def __transform(self, image, h):
+    
+    # read current image
+    im = cv2.imread(image)
+    # read template
+    template = cv2.imread(self.template, cv2.IMREAD_GRAYSCALE)
+    
+    if self.method == "fft":
+      im, _ = match_size(im, template)
+      dst = cv2.warpPerspective(im, h, None)
+    else:
+      dst = cv2.warpPerspective(im, h, None)
+    
+    dst = dst[0:template.shape[0],0:template.shape[1]]
+    
+    return dst
+
   #--- public functions ----
+  
+  ##--- cropping function ----
+    
+  # static variables and private
+  # internal functions
+  def crop(self, images):
+
+    for image in images:
+      image = cv2.imread(images)
+        
+      # black border to make it work
+      # on white matte images
+      image = cv2.copyMakeBorder(
+        image, 500, 500, 500, 500,
+        cv2.BORDER_CONSTANT,
+        None,
+        0
+      )
+      
+      # convert to grayscale (red channel)
+      try:
+        _,_,gray = cv2.split(image)
+      except:
+        gray = image
+  
+      # adaptive threshold the image
+      ret, bw = cv2.threshold(
+        gray, 0, 255,
+        cv2.THRESH_BINARY + cv2.THRESH_OTSU
+      )
+      
+      # first define a working kernel
+      kernel = np.ones((3,3),np.uint8)
+      
+      # find morphological edges using the kernel
+      # and five (5) iterations of the routine
+      edged = cv2.morphologyEx(
+        bw,
+        cv2.MORPH_CLOSE,
+        kernel,
+        iterations = 5
+      )
+      
+      # from this image which is all edges extract
+      # the contours of this center area
+      (contours, _) = cv2.findContours(
+        edged,
+        cv2.RETR_LIST,
+        cv2.CHAIN_APPROX_NONE
+      )
+      
+      # order these by length and use the longest one
+      # to create a bounding rectangle / polygon
+      contours = sorted(contours, key=cv2.contourArea, reverse=True)
+      
+      # get approximate contour
+      for c in contours:
+          p = cv2.arcLength(c, True)
+          
+          # 0.02 is the epsilon factor which determines
+          # the reduction in complexity
+          # which stops when the polygon has only 4 points
+          corners = cv2.approxPolyDP(c, 0.02 * p, True)
+          
+          if len(corners) != 4:
+              raise ValueError("Sheet is not defined by four corners.")
+          else:
+            break
+      
+      # reshuffle corner coordinates
+      corners = corners.reshape((4,2))
+      corners_new = np.zeros((4,2),dtype = np.float32)
+  
+      add = corners.sum(1)
+      corners_new[0] = corners[np.argmin(add)]
+      corners_new[2] = corners[np.argmax(add)]
+  
+      diff = np.diff(corners,axis = 1)
+      corners_new[1] = corners[np.argmin(diff)]
+      corners_new[3] = corners[np.argmax(diff)]
+      
+      # reshuffle coordinates to a set
+      # of points to use in the coordinate
+      # transform mapping
+      x = corners_new[:,0]
+      y = corners_new[:,1]
+      w = int(max(x) - min(x))
+      h = int(max(y) - min(y))
+      x = int(min(x))
+      y = int(min(y))
+  
+      # original coordinate references
+      pts2 = np.float32(
+        [[0,0],
+        [image.shape[1],0],
+        [image.shape[1],image.shape[0]],
+        [0,image.shape[0]]]
+      )
+      
+      # homography calculation based upon the approximate
+      # location of the bounding box of the sheet and
+      # the original dimensions
+      h = cv2.getPerspectiveTransform(corners_new, pts2)
+      
+      # set crop file
+      h_crop_file = os.path.join(self.homography_path, pathname + '_crop.txt')
+  
+      # pad the image to account for
+      # white matte setups
+      im = cv2.copyMakeBorder(
+        im, 500, 500, 500, 500,
+        cv2.BORDER_CONSTANT,
+        None,
+        0
+      )
+  
+      # crop using cropping homography
+      im = cv2.warpPerspective(im, h_crop, None)
+      
+      # return the destination results
+      return h
   
   # match templates and write homography
   # files to disk to speed up (repeated)
   # processing
   
-  def match(self, method, force = False):
+  def match(self, method):
+    
+    # set method as state variable
+    self.method = method
     
     # read template
     template = cv2.imread(self.template, cv2.IMREAD_GRAYSCALE)
     
-    for image in self.images:
+    for image in tqdm(self.images):
       
       # extract basename image
       basename = os.path.basename(image)
@@ -329,47 +366,7 @@ class template:
       
       # read current image
       im = cv2.imread(image)
-      orig = im
       
-      if self.config['crop']:
-        
-        # set crop file
-        h_crop_file = os.path.join(self.homography_path, pathname + '_crop.txt')
-
-        # can't force cropping on fft
-        if method == "fft":
-          force = False
-        
-        # check if crop homography file exists
-        # in output location
-        if not os.path.exists(h_crop_file) or force:
-
-          # calculate and save cropping homography
-          try:
-            h_crop = self.__inner_crop(im)
-            np.savetxt(h_crop_file, h_crop, delimiter=",")
-          except:
-            print("Cropping failed... skipping file")
-            error_log(self.log_path, "cropping", image)
-            continue
-        else:
-          # read homography from file if available
-          h_crop = np.genfromtxt(h_crop_file, delimiter=',')
-
-        # pad the image to account for
-        # white matte setups
-        im = cv2.copyMakeBorder(
-          im, 500, 500, 500, 500,
-          cv2.BORDER_CONSTANT,
-          None,
-          0
-        )
-
-        # crop using cropping homography
-        im = cv2.warpPerspective(im, h_crop, None)
-      
-      #cv2.imwrite(os.path.join(self.preview_path, pathname + "_test.jpg"), im)
-    
       # template match the cropped image to
       # a reference template using a method of choice
       try:
@@ -380,8 +377,12 @@ class template:
           im, template_new = match_size(im, template)
           h = self.__fft(im, template_new)
       except:
-        error_log(self.log_path, "matching", image)
+        # always log state internally
+        self.log.append(image)
         continue
+      
+      # add homography to dictionary
+      self.homography[image] = h
       
       # save homography file
       h_file = os.path.join(self.homography_path, pathname + '_match.txt')
@@ -406,52 +407,25 @@ class template:
     # load template guides
     guides = load_guides(guides, "format_1")
     
-    # read template
-    template = cv2.imread(self.template, cv2.IMREAD_GRAYSCALE)
-    
-    # loop over all images
-    for image in self.images:
-      
+    # sideload homography dictionary if possible
+    if len(self.homography) == 0:
       # extract basename image
       basename = os.path.basename(image)
       pathname, _ = os.path.splitext(basename)
-      
-      # read current image
-      im = cv2.imread(image)
     
+      #h_file = os.path.join(self.homography_path, pathname + '_match.txt')
+      #h = np.genfromtxt(h_file, delimiter=',')
+      #self.homography = XXX
+      print("bla")
+    
+    # loop over all homography files / images
+    # and transform, slice and label the data
+    for image, h in self.homography.items():
+      
       # format the homography file to use for
       # image deformation
-      h_file = os.path.join(self.homography_path, pathname + '_match.txt')
-      h_file_crop = os.path.join(self.homography_path, pathname + '_crop.txt')
+      #h_file = os.path.join(self.homography_path, pathname + '_match.txt')
+      #h = np.genfromtxt(h_file, delimiter=',')
       
-      # if crop is desired, check for crop homography file
-      # and apply homography
-      if self.config['crop']:
-        if os.path.exists(h_file_crop):
-          # read homography file
-          h_crop = np.genfromtxt(h_file, delimiter=',')
-          im = cv2.warpPerspective(im, h_crop, None)
-        else:
-          print("no cropping homography found, skipping " + image)
-          continue
-      
-      # check if matching homography file exists
-      # in output location
-      if os.path.exists(h_file):
-        
-        # read homography file
-        h = np.genfromtxt(h_file, delimiter=',')
-        
-        if method == "fft":
-          im, _ = match_size(im, template)
-          dst = cv2.warpPerspective(im, h, None)
-        else:
-          dst = cv2.warpPerspective(im, h, None)
-        
-        dst = dst[0:template.shape[0],0:template.shape[1]]
-        
-      else:
-        print("No template matching homography found, skipping: " + image)
-        continue
-        
-    print("Done")
+      # transform the image using the provided homography
+      matched_image = self.__transform(image, h)

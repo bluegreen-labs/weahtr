@@ -8,9 +8,14 @@ import scipy.ndimage.interpolation as ndii
 
 def match_size(image, template):
   
-    # get max dimensions
+    # get max dimensions of both images
     max_rows = max(image.shape[0], template.shape[0])
     max_cols = max(image.shape[1], template.shape[1])
+    
+    # calculate optimal fft sizes (due to non-linear
+    # processing times relative to size)
+    max_rows = cv2.getOptimalDFTSize(max_rows)
+    max_cols = cv2.getOptimalDFTSize(max_cols)
     
     # pad to max dimensions with a black border for the
     # image a white one for the template - pad to the right
@@ -31,24 +36,14 @@ def match_size(image, template):
 
 # Central point for running FFT
 def calculate_fft(img):
-  imgFft = cv2.dft(np.float32(img),flags = cv2.DFT_COMPLEX_OUTPUT)
-  imgFftShifted = np.fft.fftshift(imgFft)
-  imgMags = cv2.magnitude(imgFftShifted[:,:,0],imgFftShifted[:,:,1])
-  return (imgFft, imgFftShifted, imgMags)
-
-# this function will calculates parameters for log polar transformation
-# (center of transformation, angle step and log base)
-def lp_parameters(img):
-  centerTrans = [math.floor((img.shape[0] + 1) / 2), math.floor((img.shape[1] + 1 ) / 2)]
-  maxDiff = np.maximum(centerTrans, np.asarray(img.shape) - centerTrans)
-  maxDistance = ((maxDiff[0] ** 2 + maxDiff[1] ** 2 ) ** 0.5)
-  logBase = math.exp(math.log(maxDistance) / img.shape[1])
-  angleStep = ( 1.0 * math.pi ) / img.shape[0]
-  return (centerTrans, angleStep, logBase)
+  fft = cv2.dft(np.float32(img),flags = cv2.DFT_COMPLEX_OUTPUT)
+  fft_shifted = np.fft.fftshift(fft)
+  magnitude = cv2.magnitude(fft_shifted[:,:,0], fft_shifted[:,:,1])
+  return (fft_shifted, magnitude)
 
 # converts image to its log polar representation
 # returns the log polar representation and log base
-def lp(img, centerTrans, angleStep, logBase):
+def logpolar(img, centerTrans, angleStep, logBase):
   
   # check cartToPolar() in opencv to replace some of the logic
   
@@ -62,7 +57,7 @@ def lp(img, centerTrans, angleStep, logBase):
   y = radiusMap * np.cos(anglesMap) + centerTrans[0]
   outputImg = np.zeros(img.shape)
   ndii.map_coordinates(img, [x, y], output=outputImg)
-  np.float32(outputImg)
+  outputImg = cv2.dft(np.float32(outputImg), flags = cv2.DFT_COMPLEX_OUTPUT)
   return outputImg
 
 def phase_correlation(img_orig, img_transformed):
@@ -91,15 +86,10 @@ def preview(image, template, path):
   preview[:,:,2] = template
   
   # resize to fifth of the original
-  preview = cv2.resize(preview, None, fx=0.2, fy = 0.2)
+  preview = cv2.resize(preview, None, fx=0.3, fy = 0.3)
     
   # write to preview path
   cv2.imwrite(path,preview)
-  
-def error_log(path, prefix, content):
-  filename = os.path.join(path, prefix + "_error_log.txt")
-  with open(filename, "a") as text_file:
-     text_file.write(content + "\n")
   
 # binarize the image
 def binarize(image):
