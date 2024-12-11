@@ -19,7 +19,7 @@ t = weahtr.template(
 t.match(method = "fft")
 
 # get failed files if any
-failed_files = t.log
+#failed_files = t.log
 
 # call the labelling ML routine
 # takes a method argument to pick

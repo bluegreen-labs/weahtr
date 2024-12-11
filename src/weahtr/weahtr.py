@@ -2,6 +2,7 @@ import os
 import numpy as np
 import pandas as pd
 import yaml
+import json
 import cv2
 import logging
 from tqdm import tqdm
@@ -23,6 +24,8 @@ class template:
     
     # split out output directory
     out_dir = self.config['output']
+    
+    print("Setting up output directories...")
     
     # check and create output directories
     if not os.path.exists(os.path.join(out_dir, 'homography')):
@@ -196,7 +199,7 @@ class template:
       points2[i, :] = keypoints2[match.trainIdx].pt
     
     # Find homography
-    h, mask = cv2.findHomography(points1, points2, cv2.RANSAC)
+    h, _ = cv2.findHomography(points1, points2, cv2.RANSAC)
     
     # correct for scale factor
     h = h * [[1,1,1/scale_ratio],
@@ -208,9 +211,8 @@ class template:
   
   def __transform(self, image, h):
     
-    # read current image
+    # read image and template
     im = cv2.imread(image)
-    # read template
     template = cv2.imread(self.template, cv2.IMREAD_GRAYSCALE)
     
     if self.method == "fft":
@@ -358,6 +360,7 @@ class template:
     # read template
     template = cv2.imread(self.template, cv2.IMREAD_GRAYSCALE)
     
+    print("-- matching template")
     for image in tqdm(self.images):
       
       # extract basename image
@@ -382,11 +385,7 @@ class template:
         continue
       
       # add homography to dictionary
-      self.homography[image] = h
-      
-      # save homography file
-      h_file = os.path.join(self.homography_path, pathname + '_match.txt')
-      np.savetxt(h_file, h, delimiter=",")
+      self.homography[image] = h.tolist()
       
       # output preview on request
       if self.config['preview']:
@@ -400,32 +399,51 @@ class template:
           template,
           os.path.join(self.preview_path, pathname + ".jpg")
         )
-        
+    
+    # save homography file
+    h_file = os.path.join(
+      self.homography_path, self.config['profile_name'] + '_homography.json'
+      )
+    
+    # write homographies to json file
+    with open(h_file, "w") as out:
+      json.dump(self.homography, out)
+
   # label matched templates
   def label(self, guides):
     
-    # load template guides
-    guides = load_guides(guides, "format_1")
+    # read template
+    template = cv2.imread(self.template, cv2.IMREAD_GRAYSCALE)
     
-    # sideload homography dictionary if possible
-    if len(self.homography) == 0:
+    # load template guides
+    #guides = load_guides(guides)
+    
+    # check if file exists
+    # save homography file
+    h_file = os.path.join(
+      self.homography_path, self.config['profile_name'] + '_homography.json'
+    )
+    
+    if os.path.exists(h_file) and len(self.homography) == 0:
+      # Read JSON file
+      with open(h_file, "r") as file:
+        self.homography = json.load(file)
+      
+    # loop over all homography files / images
+    # and transform, slice and label the data
+    print("-- labelling data")
+    for image, h in tqdm(self.homography.items()):
+      
       # extract basename image
       basename = os.path.basename(image)
       pathname, _ = os.path.splitext(basename)
-    
-      #h_file = os.path.join(self.homography_path, pathname + '_match.txt')
-      #h = np.genfromtxt(h_file, delimiter=',')
-      #self.homography = XXX
-      print("bla")
-    
-    # loop over all homography files / images
-    # and transform, slice and label the data
-    for image, h in self.homography.items():
-      
-      # format the homography file to use for
-      # image deformation
-      #h_file = os.path.join(self.homography_path, pathname + '_match.txt')
-      #h = np.genfromtxt(h_file, delimiter=',')
       
       # transform the image using the provided homography
-      matched_image = self.__transform(image, h)
+      matched_image = self.__transform(image, np.array(h))
+      
+      # generate preview
+      preview(
+        matched_image,
+        template,
+        os.path.join(self.preview_path, pathname + ".jpg")
+      )

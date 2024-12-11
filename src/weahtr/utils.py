@@ -46,7 +46,6 @@ def calculate_fft(img):
 def logpolar(img, centerTrans, angleStep, logBase):
   
   # check cartToPolar() in opencv to replace some of the logic
-  
   anglesMap = np.zeros(img.shape, dtype=np.float64)
   anglesVector = -np.linspace(0, np.pi, img.shape[0], endpoint=False)
   anglesMap.T[:] = anglesVector
