@@ -16,7 +16,7 @@ t = weahtr.template(
 
 # match all templates, write homography datat to file
 # updates state of "t" with log files
-t.match(method = "fft")
+#t.match(method = "fft")
 
 # get failed files if any
 #failed_files = t.log
@@ -24,4 +24,7 @@ t.match(method = "fft")
 # call the labelling ML routine
 # takes a method argument to pick
 # which routine to use
-t.label(guides = "/docker_data_dir/demo_input/format_1_table_guides.txt")
+t.label(
+  guides = "/docker_data_dir/demo_input/format_1_table_guides.txt",
+  model = "tesseract"
+  )

@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import pandas as pd
 import cv2
 import math
 import scipy.ndimage.interpolation as ndii
@@ -116,7 +117,7 @@ def binarize(image):
 def load_guides(filename, mask_name):
    # check if the guides file can be read
    # if not return error
-   try:
+  try:
     guides = []
     file = open(u''+filename,'r')
     lines = file.readlines()
@@ -129,11 +130,61 @@ def load_guides(filename, mask_name):
        data[3] = data[3].split(",")
        guides.append(data)
     file.close()
-    return guides
-   except:
+  except:
     print("No subset location file found!")
     print("looking for: " + mask_name + ".csv")
     exit()
+    
+  # split out the locations
+  # convert to integer
+  x = np.asarray(guides[0][3], dtype=float)
+  x = x.astype(int)
+  x = np.sort(x)
+  y = np.asarray(guides[0][2], dtype=float)
+  y = y.astype(int)
+  y = np.sort(y)
+  
+  # create empty cell registry
+  row = []
+  col = []
+  x_min = []
+  x_max = []
+  y_min = []
+  y_max = []
+  
+  # loop over all x/y values and construct
+  # cropping data
+  for i, x_value in enumerate(x[0:(len(x)-1)]):
+    for j, y_value in enumerate(y[0:(len(y)-1)]):
+    
+     # pad the cell boundary values
+     # set to 0 for no padding
+     col_pad = int(round((x[i+1] - x[i])/4))
+     row_pad = int(round((y[j+1] - y[j])/3))
+     
+     x_min.append(int(x[i] - col_pad))
+     x_max.append(int(x[i+1] + col_pad))
+     y_min.append(int(y[j] - row_pad))
+     y_max.append(int(y[j+1] + row_pad))
+     
+     # create dictionary
+     # remember 0 indexed matrix notation so +1
+     # for clarity
+     row.append(j + 1)
+     col.append(i + 1)
+  
+  # concat data into pandas data frame
+  df = pd.DataFrame(
+    {'row': row,
+     'col': col,
+     'x_min': x_min,
+     'x_max': x_max,
+     'y_min': y_min,
+     'y_max': y_max
+    }
+   )
+   
+  return df
 
 def print_labels(im, locations, df):
   

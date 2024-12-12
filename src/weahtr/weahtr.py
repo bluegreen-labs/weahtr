@@ -1,18 +1,22 @@
-import os
+import os, yaml, json
 import numpy as np
 import pandas as pd
-import yaml
-import json
 import cv2
-import logging
 from tqdm import tqdm
+import pytesseract
 from utils import *
+import shutil
 
 class template:
   
   # initiating instance, with unique elements
   # dynamically set
   def __init__(self, images, template, config):
+    
+    # some feedback
+    print("\n")
+    print("Setting up output directories...")
+    print("\n")
     
     # read in template matching config
     # file including output directory etc
@@ -22,10 +26,17 @@ class template:
       except:
         print("No yaml config file at this location...")
     
+    # QUICK FIX: copy model data to the correct docker
+    # path - this should be fixed in the docker image
+    # from the get go by pulling models from elsewhere
+    # (a model generation workflow)
+    # shutil.copyfile(
+    #   "/docker_data_dir/src/weahtr/models/cobecore-V6.traineddata",
+    #   os.path.join(self.config['tesseract']['tessdata'], "cobecore-V6.traineddata")
+    #   )
+    
     # split out output directory
     out_dir = self.config['output']
-    
-    print("Setting up output directories...")
     
     # check and create output directories
     if not os.path.exists(os.path.join(out_dir, 'homography')):
@@ -66,19 +77,9 @@ class template:
     template = binarize(template)
     
     # scale images for speed
-    image = cv2.resize(
-      image,
-      None,
-      fx = scale_ratio, 
-      fy = scale_ratio
-      )
-      
-    template = cv2.resize(
-      template,
-      None,
-      fx = scale_ratio, 
-      fy = scale_ratio
-    )
+    # and general accuracy
+    image = cv2.resize(image, None, fx = scale_ratio, fy = scale_ratio)
+    template = cv2.resize(template, None, fx = scale_ratio, fy = scale_ratio)
     
     # fft transforms
     fft_img, img_mag = calculate_fft(image)
@@ -160,19 +161,8 @@ class template:
     
     # scale images for speed
     # and general accuracy
-    image = cv2.resize(
-      image,
-      None,
-      fx = scale_ratio, 
-      fy = scale_ratio
-      )
-      
-    template = cv2.resize(
-      template,
-      None,
-      fx = scale_ratio, 
-      fy = scale_ratio
-    )
+    image = cv2.resize(image, None, fx = scale_ratio, fy = scale_ratio)
+    template = cv2.resize(template, None, fx = scale_ratio, fy = scale_ratio)
     
     # Detect ORB features and compute descriptors
     orb = cv2.ORB_create(self.config['features']['max_features'])
@@ -224,6 +214,97 @@ class template:
     dst = dst[0:template.shape[0],0:template.shape[1]]
     
     return dst
+
+  def __label_cells(self, im, cells, prefix, model):
+    
+    # initiate empty vectores
+    text = []
+    conf = []
+    file_name = []
+    row = []
+    col = []
+  
+    # generates cropped sections based upon
+    # row and column locations
+    t = tqdm(cells.iterrows(), total=cells.shape[0], leave = False)
+    for index, cell in t:
+      t.set_description("Processing column %i, row %i " % (cell['col'], cell['row']), refresh=True)
+      
+      try:
+        
+       # trap end of table issues 
+       # (when running out of space)
+       if cell['x_max'] > im.shape[1]:
+         cell['x_max'] = int(im.shape[1])
+        
+       if cell['y_max'] > im.shape[0]:
+         cell['y_max'] = int(im.shape[0])
+         
+       # crop image to size
+       crop_im = im[cell['y_min']:cell['y_max'], cell['x_min']:cell['x_max']]
+       img = cv2.cvtColor(crop_im, cv2.COLOR_BGR2RGB)
+  
+       # ML based transcription, multi-model selection
+       # with tesseract as the default
+       if model == "tesseract":
+        try:
+          ocr_result = pytesseract.image_to_data(
+            img,
+            lang='cobecore-V6',
+            config='--psm 8 -c tessedit_char_whitelist=0123456789.,',
+            output_type='data.frame'
+          )
+    
+          # get results with maximum confidence
+          # assume only one viable result per image
+          # see psm 8 setting and conservative (tight) cropping
+          ocr_result = ocr_result[ocr_result.conf == max(ocr_result.conf)]
+          
+          # split out the content
+          new_label = ocr_result.text.iloc[0]
+          confidence = ocr_result.conf.iloc[0]
+          
+          if np.isnan(new_label):
+            conf.append(0)
+            text.append('/')
+          else:
+            # write label output data to vectors
+            text.append(new_label)
+            conf.append(confidence)
+        
+        except:
+          # write label output data to vectors
+          conf.append(0)
+          text.append('//')
+        
+       # add filename and row / col numbers
+       file_name.append(prefix)
+       col.append(cell['col'])
+       row.append(cell['row'])
+      
+      except:
+       # Continue to next iteration on fail
+       # happens when index runs out
+       continue
+    
+    # concat data into pandas data frame
+    df = pd.DataFrame({'text':text,
+                     'conf':conf,
+                     'col':col,
+                     'row':row,
+                     'file':file_name}
+                     )
+  
+    # construct path
+    filename = os.path.join(
+      self.label_path,
+      prefix + "_" + self.config['profile_name'] + "_labels.csv"
+    )
+    
+    # write data to disk
+    df.to_csv(filename, sep=',', index = False)
+    
+    return df
 
   #--- public functions ----
   
@@ -359,9 +440,8 @@ class template:
     
     # read template
     template = cv2.imread(self.template, cv2.IMREAD_GRAYSCALE)
-    
-    print("-- matching template")
-    for image in tqdm(self.images):
+  
+    for image in tqdm(self.images, desc="Matching template"):
       
       # extract basename image
       basename = os.path.basename(image)
@@ -410,13 +490,13 @@ class template:
       json.dump(self.homography, out)
 
   # label matched templates
-  def label(self, guides):
+  def label(self, guides, model):
     
     # read template
     template = cv2.imread(self.template, cv2.IMREAD_GRAYSCALE)
     
     # load template guides
-    #guides = load_guides(guides)
+    cells = load_guides(guides, "format_1")
     
     # check if file exists
     # save homography file
@@ -424,16 +504,15 @@ class template:
       self.homography_path, self.config['profile_name'] + '_homography.json'
     )
     
+    # Read JSON homography file
     if os.path.exists(h_file) and len(self.homography) == 0:
-      # Read JSON file
       with open(h_file, "r") as file:
         self.homography = json.load(file)
-      
+    
     # loop over all homography files / images
     # and transform, slice and label the data
-    print("-- labelling data")
-    for image, h in tqdm(self.homography.items()):
-      
+    for image, h in tqdm(self.homography.items(), desc="Labelling data   "):
+        
       # extract basename image
       basename = os.path.basename(image)
       pathname, _ = os.path.splitext(basename)
@@ -441,9 +520,6 @@ class template:
       # transform the image using the provided homography
       matched_image = self.__transform(image, np.array(h))
       
-      # generate preview
-      preview(
-        matched_image,
-        template,
-        os.path.join(self.preview_path, pathname + ".jpg")
-      )
+      # label the cells in the table / sheet / header
+      labels = self.__label_cells(matched_image, cells, pathname, model)
+      
