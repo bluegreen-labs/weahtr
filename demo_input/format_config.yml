@@ -9,7 +9,7 @@
 # the configuration profile name
 # set this to a unique value per
 # profile
-profile_name: "format_1"
+profile_name: "format_1_table"
 
 # where to output analysis data
 # this includes cropping and
@@ -28,7 +28,7 @@ output: /docker_data_dir/output/
 scale_ratio: 0.25
 
 # write template matching previews
-preview: True
+preview: False
 
 # these set hard bounds on some of the template matching methods
 # for example it limits rotation over certain angles
@@ -44,3 +44,8 @@ fft:
  scale_tolerance: 3
 
 #--- machine learning settings ---
+
+# sets the tesseract data directory
+# to which
+tesseract:
+  tessdata: "/usr/share/tesseract-ocr/5/tessdata/"
