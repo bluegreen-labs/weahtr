@@ -1,4 +1,4 @@
-import os
+import os, json
 import numpy as np
 import pandas as pd
 import cv2
@@ -24,7 +24,7 @@ def match_size(image, template):
     image = cv2.copyMakeBorder(
       image, 0, max_rows - image.shape[0], 0, max_cols - image.shape[1],
       cv2.BORDER_CONSTANT,
-      value = 0
+      value = 1
     )
     
     template = cv2.copyMakeBorder(
@@ -74,14 +74,14 @@ def phase_correlation(img_orig, img_transformed):
   
 #--- general utility functions ---
 
-def preview(image, template, path):
+def preview_match(image, template, path):
   
   # split band and crop
   image = binarize(image)
   image = image[0:template.shape[0],0:template.shape[1]]
     
   # construct preview
-  preview = np.full((image.shape[0],image.shape[1],3),255, dtype=np.uint8)
+  preview = np.full((template.shape[0],template.shape[1],3),255, dtype=np.uint8)
   preview[:,:,1] = image
   preview[:,:,2] = template
   
@@ -89,7 +89,7 @@ def preview(image, template, path):
   preview = cv2.resize(preview, None, fx=0.3, fy = 0.3)
     
   # write to preview path
-  cv2.imwrite(path,preview)
+  cv2.imwrite(path, preview)
   
 # binarize the image
 def binarize(image):
@@ -105,31 +105,22 @@ def binarize(image):
       image,
       255,
       cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,
-      11,
-      2
+      91,
+      6
   )
-
-  # Median blurring
-  image = cv2.medianBlur(image, 5)
   
+  # erode (fat lines register poorly)
+  kernel = np.ones((3, 3), np.uint8) 
+  image = cv2.dilate(image, kernel)  
+
   return image
 
-def load_guides(filename, mask_name):
+def load_guides(filename):
    # check if the guides file can be read
    # if not return error
   try:
-    guides = []
-    file = open(u''+filename,'r')
-    lines = file.readlines()
-    for line in lines:
-     if line.find("Guide:" + mask_name) > -1:
-       data = line.split('|')
-       data[0] = data[0].split(":")
-       data[1] = data[1].split(",")
-       data[2] = data[2].split(",")
-       data[3] = data[3].split(",")
-       guides.append(data)
-    file.close()
+    with open(filename, "r") as file:
+      guides = json.load(file)
   except:
     print("No subset location file found!")
     print("looking for: " + mask_name + ".csv")
@@ -137,11 +128,9 @@ def load_guides(filename, mask_name):
     
   # split out the locations
   # convert to integer
-  x = np.asarray(guides[0][3], dtype=float)
-  x = x.astype(int)
+  x = guides['cols']
   x = np.sort(x)
-  y = np.asarray(guides[0][2], dtype=float)
-  y = y.astype(int)
+  y = guides['rows']
   y = np.sort(y)
   
   # create empty cell registry
@@ -159,8 +148,8 @@ def load_guides(filename, mask_name):
     
      # pad the cell boundary values
      # set to 0 for no padding
-     col_pad = int(round((x[i+1] - x[i])/4))
-     row_pad = int(round((y[j+1] - y[j])/3))
+     col_pad = int(round((x[i+1] - x[i])/8))
+     row_pad = int(round((y[j+1] - y[j])/5))
      
      x_min.append(int(x[i] - col_pad))
      x_max.append(int(x[i+1] + col_pad))
@@ -186,34 +175,35 @@ def load_guides(filename, mask_name):
    
   return df
 
-def print_labels(im, locations, df):
-  
-  # split out the locations
-  # convert to integer
-  x = np.asarray(locations[0][3], dtype=float)
-  x = x.astype(int)
-  x = np.sort(x)
-  y = np.asarray(locations[0][2], dtype=float)
-  y = y.astype(int)
-  y = np.sort(y)
-  
-  # loop over all rows
-  for i, row in df.iterrows():
-   y_value = int(row['row'])
-   x_value = int(row['col'])
-   label = row['text']
-   conf = row['conf']
-   
-   center_x = x[x_value -1]
-   center_y = y[y_value]
-   
-   try:
-     if conf > 85:
-      cv2.putText(im, str(label) ,(center_x, center_y),
-        cv2.FONT_HERSHEY_SIMPLEX, 2,(255,255,255),9,cv2.LINE_AA)
-     else:
-      cv2.putText(im, str(label) ,(center_x, center_y),
-        cv2.FONT_HERSHEY_SIMPLEX, 2,(255,0,0),9,cv2.LINE_AA) 
-   except:
-    continue
-  return im
+def preview_labels(im, df, path):
+    
+    # loop over all rows
+    for i, row in df.iterrows():
+     x = int(row['x'])
+     y = int(row['y'])
+     conf = row['conf']
+     label = row['text']
+     
+     try:
+      if conf > 85:
+        cv2.putText(im, str(label) ,(x, y),
+          cv2.FONT_HERSHEY_SIMPLEX, 2,(255,255,255),4,cv2.LINE_AA)
+      else:
+        cv2.putText(im, str(label) ,(x, y),
+          cv2.FONT_HERSHEY_SIMPLEX, 2,(0,0,255),4,cv2.LINE_AA) 
+     except:
+      continue
+    
+    # rescale
+    im = cv2.resize(
+      im,
+      None,
+      fx = 0.25,
+      fy = 0.25
+    )
+
+    # write to file
+    cv2.imwrite(
+      path,
+      im
+    )

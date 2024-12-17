@@ -30,10 +30,10 @@ class template:
     # path - this should be fixed in the docker image
     # from the get go by pulling models from elsewhere
     # (a model generation workflow)
-    # shutil.copyfile(
-    #   "/docker_data_dir/src/weahtr/models/cobecore-V6.traineddata",
-    #   os.path.join(self.config['tesseract']['tessdata'], "cobecore-V6.traineddata")
-    #   )
+    shutil.copyfile(
+       "/docker_data_dir/src/weahtr/models/cobecore-V6.traineddata",
+       os.path.join(self.config['tesseract']['tessdata'], "cobecore-V6.traineddata")
+    )
     
     # split out output directory
     out_dir = self.config['output']
@@ -62,7 +62,15 @@ class template:
     
     # set basic info such as the list
     # of images to consider and the template to use
-    self.images = images
+    
+    # this funkiness avoids a string being
+    # read as a list, if a single image is
+    # provided and directly assigned to self.images
+    self.images = []
+    for image in images:
+      self.images.append(image)
+    
+    # the template path
     self.template = template
     
   #--- private functions ----
@@ -131,10 +139,10 @@ class template:
     if y > image.shape[1] // 2:
         y -= image.shape[1]
     
-    # validate translation values
+    # validate translation values (decrease scale as before correction)
     translation_threshold = self.config['fft']['translation_tolerance'] * scale_ratio
     
-    if x > translation_threshold or y > translation_threshold:
+    if abs(x) > translation_threshold or abs(y) > translation_threshold:
       raise ValueError('Translation values out of range')
 
     # create translation matrix
@@ -196,6 +204,13 @@ class template:
              [1,1,1/scale_ratio],
              [scale_ratio, scale_ratio,1]]
     
+    # validate translation values
+    translation_threshold = self.config['fft']['translation_tolerance']
+    x, y = abs(h[:2, 2])
+    
+    if x > translation_threshold or y > translation_threshold:
+      raise ValueError('Translation values out of range')
+    
     # return matched image and ancillary data
     return h
   
@@ -223,6 +238,8 @@ class template:
     file_name = []
     row = []
     col = []
+    x = []
+    y = []
   
     # generates cropped sections based upon
     # row and column locations
@@ -242,14 +259,14 @@ class template:
          
        # crop image to size
        crop_im = im[cell['y_min']:cell['y_max'], cell['x_min']:cell['x_max']]
-       img = cv2.cvtColor(crop_im, cv2.COLOR_BGR2RGB)
-  
+       crop_im = cv2.cvtColor(crop_im, cv2.COLOR_BGR2RGB)
+
        # ML based transcription, multi-model selection
        # with tesseract as the default
        if model == "tesseract":
         try:
           ocr_result = pytesseract.image_to_data(
-            img,
+            crop_im,
             lang='cobecore-V6',
             config='--psm 8 -c tessedit_char_whitelist=0123456789.,',
             output_type='data.frame'
@@ -281,7 +298,9 @@ class template:
        file_name.append(prefix)
        col.append(cell['col'])
        row.append(cell['row'])
-      
+       x.append(cell['x_min'])
+       y.append(cell['y_max'] - (cell['y_max'] - cell['y_min'])/4)
+       
       except:
        # Continue to next iteration on fail
        # happens when index runs out
@@ -292,6 +311,8 @@ class template:
                      'conf':conf,
                      'col':col,
                      'row':row,
+                     'x': x,
+                     'y': y,
                      'file':file_name}
                      )
   
@@ -432,8 +453,7 @@ class template:
   # match templates and write homography
   # files to disk to speed up (repeated)
   # processing
-  
-  def match(self, method):
+  def match(self, method, preview = False):
     
     # set method as state variable
     self.method = method
@@ -463,18 +483,18 @@ class template:
         # always log state internally
         self.log.append(image)
         continue
-      
+
       # add homography to dictionary
       self.homography[image] = h.tolist()
       
       # output preview on request
-      if self.config['preview']:
+      if preview:
         
         # process using homography
-        dst = cv2.warpPerspective(im, h, None)
+        dst = cv2.warpPerspective(im, h, (template.shape[1], template.shape[0]))
         
         # generate preview
-        preview(
+        preview_match(
           dst,
           template,
           os.path.join(self.preview_path, pathname + ".jpg")
@@ -490,13 +510,13 @@ class template:
       json.dump(self.homography, out)
 
   # label matched templates
-  def label(self, guides, model):
+  def label(self, guides, model, preview = False):
     
     # read template
     template = cv2.imread(self.template, cv2.IMREAD_GRAYSCALE)
     
     # load template guides
-    cells = load_guides(guides, "format_1")
+    cells = load_guides(guides)
     
     # check if file exists
     # save homography file
@@ -523,3 +543,9 @@ class template:
       # label the cells in the table / sheet / header
       labels = self.__label_cells(matched_image, cells, pathname, model)
       
+      if preview:
+        preview_labels(
+          matched_image,
+          labels,
+          os.path.join(self.label_path, pathname + ".jpg")
+          )
