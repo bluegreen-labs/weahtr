@@ -27,9 +27,6 @@ output: /docker_data_dir/output/
 # for tables covering less 0.5 yields good results
 scale_ratio: 0.25
 
-# write template matching previews
-preview: False
-
 # these set hard bounds on some of the template matching methods
 # for example it limits rotation over certain angles
 # as those would be unrealistic (given a good data
@@ -37,6 +34,7 @@ preview: False
 features:
   max_features: 25000 # maximum number of features to generate
   good_match: 0.5 # fraction of good matches to consider
+  translation_tolerance: 1000 # only allow translations X/Y of 500px or less
 
 fft:
  rotation_tolerance: 10 # only allow rotations of 10 degrees or less
