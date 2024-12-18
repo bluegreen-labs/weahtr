@@ -1,14 +1,19 @@
-# template matching settings
-# including the two methods,
-# including a fft and feature based
-# method
+# weaHTR config file
+#
+# All mentioned variables are required
+# note that the YML file is indentation
+# sensitive so only adjust the variable
+# names, or be careful when re-ordering
+# things.
 ---
 
 #--- general settings ---
 
 # the configuration profile name
 # set this to a unique value per
-# profile
+# profile and will affect the
+# naming convention on output
+# generated (for reproducibility)
 profile_name: "format_1_table"
 
 # where to output analysis data
@@ -16,34 +21,55 @@ profile_name: "format_1_table"
 # template matching settings
 # as well as the ML labels
 # and log files (failed attempts)
-output: /docker_data_dir/output/
+# this directory will be created if
+# it does not exist
+output: "/docker_data_dir/output/"
 
 #--- template matching settings ---
 
 # scale factor of image inputs - to speed up processing
 # and increase accuracy, the larger the table on the image
 # the smaller this value can be
-# for an almost full covered image a value of 0.25 is good
-# for tables covering less 0.5 yields good results
+# for an almost fully covered image a value of 0.25 is good
+# for tables covering less 0.5 (less shrinking) yields
+# better results
 scale_ratio: 0.25
 
+# adaptive thresholding settings
+# influencing the conversion
+# of the table to a pure black and
+# white image and influencing the
+# template matching to a large extent
+# [check logs and noise levels on template matching
+# previews to get insights into potential issues]
+# See opencv documentation at
+# https://docs.opencv.org/3.4/d7/d4d/tutorial_py_thresholding.html
+# on blockSize (window_size) and C under adaptive thresholding
+threshold:
+ window_size: 91
+ C: 6
+
 # these set hard bounds on some of the template matching methods
-# for example it limits rotation over certain angles
+# for example it limits translation or rotation over certain values
 # as those would be unrealistic (given a good data
 # acquisition protocol)
 features:
   max_features: 25000 # maximum number of features to generate
   good_match: 0.5 # fraction of good matches to consider
-  translation_tolerance: 1000 # only allow translations X/Y of 500px or less
+  translation_tolerance: 1000 # only allow translations X/Y pixels or less
 
 fft:
  rotation_tolerance: 10 # only allow rotations of 10 degrees or less
- translation_tolerance: 1000 # only allow translations X/Y of 500px or less
- scale_tolerance: 3
+ translation_tolerance: 1000 # only allow translations X/Y pixels or less
+ scale_tolerance: 3 # scale factor can not exceed this value
 
 #--- machine learning settings ---
 
 # sets the tesseract data directory
-# to which
+# to which to transfer the desired
+# model, this default uses the path
+# of a docker image setup
 tesseract:
-  tessdata: "/usr/share/tesseract-ocr/5/tessdata/"
+ path: "/usr/share/tesseract-ocr/5/tessdata/"
+ model: "cobecore-V6.traineddata"
+ config: '--psm 8 -c tessedit_char_whitelist=0123456789.,'

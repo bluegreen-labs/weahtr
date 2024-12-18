@@ -1,0 +1,49 @@
+# template matching settings
+# including the two methods,
+# including a fft and feature based
+# method
+---
+
+#--- general settings ---
+
+# the configuration profile name
+# set this to a unique value per
+# profile
+profile_name: "format_redata_table"
+
+# where to output analysis data
+# this includes cropping and
+# template matching settings
+# as well as the ML labels
+# and log files (failed attempts)
+output: /docker_data_dir/output/
+
+#--- template matching settings ---
+
+# scale factor of image inputs - to speed up processing
+# and increase accuracy, the larger the table on the image
+# the smaller this value can be
+# for an almost full covered image a value of 0.25 is good
+# for tables covering less 0.5 yields good results
+scale_ratio: 0.25
+
+# these set hard bounds on some of the template matching methods
+# for example it limits rotation over certain angles
+# as those would be unrealistic (given a good data
+# acquisition protocol)
+features:
+  max_features: 25000 # maximum number of features to generate
+  good_match: 0.5 # fraction of good matches to consider
+  translation_tolerance: 1000 # only allow translations X/Y of 500px or less
+
+fft:
+ rotation_tolerance: 10 # only allow rotations of 10 degrees or less
+ translation_tolerance: 1000 # only allow translations X/Y of 500px or less
+ scale_tolerance: 3
+
+#--- machine learning settings ---
+
+# sets the tesseract data directory
+# to which
+tesseract:
+  tessdata: "/usr/share/tesseract-ocr/5/tessdata/"

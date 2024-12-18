@@ -1,22 +1,34 @@
+# libraries
 import os, yaml, json
 import numpy as np
 import pandas as pd
 import cv2
 from tqdm import tqdm
 import pytesseract
-from utils import *
 import shutil
+import requests
+from utils import *
 
+# template processing class
 class template:
   
   # initiating instance, with unique elements
-  # dynamically set
+  # dynamically set, this allows for dynamic
+  # iterations in python scripts
   def __init__(self, images, template, config):
+    
+    # validate inputs  
+    if not os.path.exists(template):
+      print("Template image does not exist, check path ...")
+      quit()
+      
+    if not os.path.exists(config):
+      print("Config file does not exist, check path ...")
+      quit()
     
     # some feedback
     print("\n")
-    print("Setting up output directories...")
-    print("\n")
+    print("Setting up output directories at:")
     
     # read in template matching config
     # file including output directory etc
@@ -24,19 +36,39 @@ class template:
       try:
         self.config = yaml.safe_load(file)
       except:
-        print("No yaml config file at this location...")
+        print("No yaml config file, or badly formatted YML file (check all quotes) ...")
+        quit()
+    
+    # split out output directory
+    out_dir = self.config['output']
+    
+    # feedback continued
+    print(out_dir)
+    print("\n")
+    
+    # where the model should live
+    model_path = os.path.join(
+         self.config['tesseract']['path'],
+         self.config['tesseract']['model']
+      )
+      
+    #model_source = os.path.join("/tmp", self.config['tesseract']['model'])
+    # 
+    # base_url_tesseract = "/"
+    # url = os.path.join(base_url_tesseract, self.config['tesseract']['model'])
+    # r = requests.get(url)
+    # 
+    # with open(model_path, 'wb') as f:
+    #     f.write(r.content)
     
     # QUICK FIX: copy model data to the correct docker
     # path - this should be fixed in the docker image
     # from the get go by pulling models from elsewhere
     # (a model generation workflow)
     shutil.copyfile(
-       "/docker_data_dir/src/weahtr/models/cobecore-V6.traineddata",
-       os.path.join(self.config['tesseract']['tessdata'], "cobecore-V6.traineddata")
+      "/docker_data_dir/src/weahtr/models/cobecore-V6.traineddata",
+      model_path
     )
-    
-    # split out output directory
-    out_dir = self.config['output']
     
     # check and create output directories
     if not os.path.exists(os.path.join(out_dir, 'homography')):
@@ -81,13 +113,24 @@ class template:
     scale_ratio = self.config['scale_ratio']
     
     # binarize
-    image = binarize(image)
-    template = binarize(template)
+    image = binarize(
+      image,
+      self.config['threshold']['window_size'],
+      self.config['threshold']['C']
+    )
+    template = binarize(
+      template,
+      self.config['threshold']['window_size'],
+      self.config['threshold']['C']
+    )
     
     # scale images for speed
     # and general accuracy
     image = cv2.resize(image, None, fx = scale_ratio, fy = scale_ratio)
     template = cv2.resize(template, None, fx = scale_ratio, fy = scale_ratio)
+    
+    # match image sizes
+    image, template = match_size(image, template)
     
     # fft transforms
     fft_img, img_mag = calculate_fft(image)
@@ -164,8 +207,16 @@ class template:
     scale_ratio = self.config['scale_ratio']
     
     # binarize
-    image = binarize(image)
-    template = binarize(template)
+    image = binarize(
+      image,
+      self.config['threshold']['window_size'],
+      self.config['threshold']['C']
+    )
+    template = binarize(
+      template,
+      self.config['threshold']['window_size'],
+      self.config['threshold']['C']
+    )
     
     # scale images for speed
     # and general accuracy
@@ -264,11 +315,15 @@ class template:
        # ML based transcription, multi-model selection
        # with tesseract as the default
        if model == "tesseract":
+        
+        # grab the base model name
+        model_name, _ = os.path.splitext(self.config['tesseract']['model'])
+         
         try:
           ocr_result = pytesseract.image_to_data(
             crop_im,
-            lang='cobecore-V6',
-            config='--psm 8 -c tessedit_char_whitelist=0123456789.,',
+            lang = model_name,
+            config = self.config['tesseract']['config'],
             output_type='data.frame'
           )
     
@@ -307,14 +362,16 @@ class template:
        continue
     
     # concat data into pandas data frame
-    df = pd.DataFrame({'text':text,
-                     'conf':conf,
-                     'col':col,
-                     'row':row,
-                     'x': x,
-                     'y': y,
-                     'file':file_name}
-                     )
+    df = pd.DataFrame(
+      {'text':text,
+       'conf':conf,
+       'col':col,
+       'row':row,
+       'x': x,
+       'y': y,
+       'file':file_name
+      }
+    )
   
     # construct path
     filename = os.path.join(
@@ -476,9 +533,7 @@ class template:
         if method == "features":
           h = self.__features(im, template)
         else:
-          # match image sizes
-          im, template_new = match_size(im, template)
-          h = self.__fft(im, template_new)
+          h = self.__fft(im, template)
       except:
         # always log state internally
         self.log.append(image)
@@ -512,14 +567,18 @@ class template:
   # label matched templates
   def label(self, guides, model, preview = False):
     
+    # Validating all inputs
+    if not os.path.exists(guides):
+      print("Template guides file does not exist, check path ...")
+      quit()
+    
     # read template
     template = cv2.imread(self.template, cv2.IMREAD_GRAYSCALE)
     
     # load template guides
     cells = load_guides(guides)
     
-    # check if file exists
-    # save homography file
+    # check if file exists, save homography file
     h_file = os.path.join(
       self.homography_path, self.config['profile_name'] + '_homography.json'
     )

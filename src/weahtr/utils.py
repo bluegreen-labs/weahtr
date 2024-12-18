@@ -24,13 +24,13 @@ def match_size(image, template):
     image = cv2.copyMakeBorder(
       image, 0, max_rows - image.shape[0], 0, max_cols - image.shape[1],
       cv2.BORDER_CONSTANT,
-      value = 1
+      value = 0
     )
     
     template = cv2.copyMakeBorder(
       template, 0, max_rows - template.shape[0], 0, max_cols - template.shape[1],
       cv2.BORDER_CONSTANT,
-      value = 1
+      value = 0
     )
     
     return (image, template)
@@ -92,7 +92,7 @@ def preview_match(image, template, path):
   cv2.imwrite(path, preview)
   
 # binarize the image
-def binarize(image):
+def binarize(image, window_size = 91, C = 6):
   
   if len(image.shape) == 3:
     # convert images to grayscale
@@ -105,8 +105,8 @@ def binarize(image):
       image,
       255,
       cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,
-      91,
-      6
+      window_size,
+      C
   )
   
   # erode (fat lines register poorly)
