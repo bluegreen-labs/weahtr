@@ -14,7 +14,7 @@
 # profile and will affect the
 # naming convention on output
 # generated (for reproducibility)
-profile_name: "format_1_table"
+profile_name: "format_1_month"
 
 # where to output analysis data
 # this includes cropping and
@@ -50,8 +50,7 @@ threshold:
 # as those would be unrealistic (given a good data
 # acquisition protocol)
 features:
- max_features: 25000 # maximum number of features to generate
- good_match: 0.5 # fraction of good matches to consider
+ max_features: 20000 # maximum number of features to generate
  translation_tolerance: 1000 # only allow translations X/Y pixels or less
 
 fft:
@@ -60,6 +59,13 @@ fft:
  scale_tolerance: 2 # scale factor can not exceed this value
 
 #--- machine learning settings ---
+
+# padding factor fraction of the width height to
+# be added on either side of the selection
+# cell width +_ (cell width * x_pad)
+# cell height +_ (cell height * y_pad)
+x_pad: 0
+y_pad: 0
 
 # sets the tesseract data directory
 # to which to transfer the desired

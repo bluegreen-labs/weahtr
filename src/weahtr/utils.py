@@ -47,6 +47,7 @@ def calculate_fft(img):
 def logpolar(img, centerTrans, angleStep, logBase):
   
   # check cartToPolar() in opencv to replace some of the logic
+  # logPolar(src,logPolarMat,Point(src.cols/2, src.rows/2),src.cols/8,INTER_CUBIC);
   anglesMap = np.zeros(img.shape, dtype=np.float64)
   anglesVector = -np.linspace(0, np.pi, img.shape[0], endpoint=False)
   anglesMap.T[:] = anglesVector
@@ -110,8 +111,11 @@ def binarize(image, window_size = 91, C = 6):
   )
   
   # erode (fat lines register poorly)
-  kernel = np.ones((3, 3), np.uint8) 
-  image = cv2.dilate(image, kernel)  
+  # use dilate as using inverted image
+  kernel = np.ones((3, 3), np.uint8)
+  image = cv2.dilate(image, kernel)
+  #image = cv2.erode(image, kernel)
+
 
   return image
 
@@ -146,15 +150,10 @@ def load_guides(filename):
   for i, x_value in enumerate(x[0:(len(x)-1)]):
     for j, y_value in enumerate(y[0:(len(y)-1)]):
     
-     # pad the cell boundary values
-     # set to 0 for no padding
-     col_pad = int(round((x[i+1] - x[i])/8))
-     row_pad = int(round((y[j+1] - y[j])/5))
-     
-     x_min.append(int(x[i] - col_pad))
-     x_max.append(int(x[i+1] + col_pad))
-     y_min.append(int(y[j] - row_pad))
-     y_max.append(int(y[j+1] + row_pad))
+     x_min.append(int(x[i]))
+     x_max.append(int(x[i+1]))
+     y_min.append(int(y[j]))
+     y_max.append(int(y[j+1]))
      
      # create dictionary
      # remember 0 indexed matrix notation so +1
@@ -177,33 +176,139 @@ def load_guides(filename):
 
 def preview_labels(im, df, path):
     
-    # loop over all rows
-    for i, row in df.iterrows():
-     x = int(row['x'])
-     y = int(row['y'])
-     conf = row['conf']
-     label = row['text']
-     
-     try:
-      if conf > 85:
-        cv2.putText(im, str(label) ,(x, y),
-          cv2.FONT_HERSHEY_SIMPLEX, 2,(255,255,255),4,cv2.LINE_AA)
-      else:
-        cv2.putText(im, str(label) ,(x, y),
-          cv2.FONT_HERSHEY_SIMPLEX, 2,(0,0,255),4,cv2.LINE_AA) 
-     except:
-      continue
-    
-    # rescale
-    im = cv2.resize(
-      im,
-      None,
-      fx = 0.25,
-      fy = 0.25
-    )
+  # loop over all rows
+  for i, row in df.iterrows():
+   x = int(row['x'])
+   y = int(row['y'])
+   conf = row['conf']
+   label = row['text']
+   
+   try:
+    if conf > 85:
+      cv2.putText(im, str(label) ,(x, y),
+        cv2.FONT_HERSHEY_SIMPLEX, 2,(255,255,255),4,cv2.LINE_AA)
+    else:
+      cv2.putText(im, str(label) ,(x, y),
+        cv2.FONT_HERSHEY_SIMPLEX, 2,(0,0,255),4,cv2.LINE_AA) 
+   except:
+    continue
+  
+  # rescale
+  im = cv2.resize(
+    im,
+    None,
+    fx = 0.25,
+    fy = 0.25
+  )
 
-    # write to file
-    cv2.imwrite(
-      path,
-      im
-    )
+  # write to file
+  cv2.imwrite(
+    path,
+    im
+  )
+
+def highpass(img, sigma):
+    return img - cv2.GaussianBlur(img, (0,0), sigma) + 127
+
+# static variables and private
+# internal functions
+def crop_matte(image):
+  
+  # black border to make it work
+  # on white matte images
+  image = cv2.copyMakeBorder(
+    image, 500, 500, 500, 500,
+    cv2.BORDER_CONSTANT,
+    None,
+    0
+  )
+  
+  try:
+    _,_,gray = cv2.split(image)
+  except:
+    gray = image
+
+  # adaptive threshold the image
+  ret, bw = cv2.threshold(
+    gray, 0, 255,
+    cv2.THRESH_BINARY + cv2.THRESH_OTSU
+  )
+  
+  # first define a working kernel
+  kernel = np.ones((3,3),np.uint8)
+  
+  # find morphological edges using the kernel
+  # and five (5) iterations of the routine
+  edged = cv2.morphologyEx(
+    bw,
+    cv2.MORPH_CLOSE,
+    kernel,
+    iterations = 5
+  )
+  
+  # from this image which is all edges extract
+  # the contours of this center area
+  (contours, _) = cv2.findContours(
+    edged,
+    cv2.RETR_LIST,
+    cv2.CHAIN_APPROX_NONE
+  )
+  
+  # order these by length and use the longest one
+  # to create a bounding rectangle / polygon
+  contours = sorted(contours, key=cv2.contourArea, reverse=True)
+  
+  # get approximate contour
+  for c in contours:
+      p = cv2.arcLength(c, True)
+      
+      # 0.02 is the epsilon factor which determines
+      # the reduction in complexity
+      # which stops when the polygon has only 4 points
+      corners = cv2.approxPolyDP(c, 0.02 * p, True)
+      
+      if len(corners) != 4:
+          raise ValueError("Sheet is not defined by four corners.")
+      else:
+        break
+  
+  # reshuffle corner coordinates
+  corners = corners.reshape((4,2))
+  corners_new = np.zeros((4,2),dtype = np.float32)
+
+  add = corners.sum(1)
+  corners_new[0] = corners[np.argmin(add)]
+  corners_new[2] = corners[np.argmax(add)]
+
+  diff = np.diff(corners,axis = 1)
+  corners_new[1] = corners[np.argmin(diff)]
+  corners_new[3] = corners[np.argmax(diff)]
+  
+  # reshuffle coordinates to a set
+  # of points to use in the coordinate
+  # transform mapping
+  x = corners_new[:,0]
+  y = corners_new[:,1]
+  w = int(max(x) - min(x))
+  h = int(max(y) - min(y))
+  x = int(min(x))
+  y = int(min(y))
+
+  # original coordinate references
+  pts2 = np.float32(
+    [[0,0],
+    [image.shape[1],0],
+    [image.shape[1],image.shape[0]],
+    [0,image.shape[0]]]
+  )
+  
+  # homography calculation based upon the approximate
+  # location of the bounding box of the sheet and
+  # the original dimensions
+  h = cv2.getPerspectiveTransform(corners_new, pts2)
+  
+  # crop using cropping homography
+  im = cv2.warpPerspective(image, h, None)
+  
+  # return the destination results
+  return (im, h)

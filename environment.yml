@@ -1,7 +1,6 @@
 name: weahtr
 channels:
   - conda-forge
-  - defaults
   - pytorch
   - nvidia
 
@@ -20,6 +19,7 @@ dependencies:
   - opencv
   - easyocr
   - pytesseract
+  - ultralytics
   - pytorch
   - torchvision
   - torchaudio

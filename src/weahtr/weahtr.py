@@ -15,9 +15,9 @@ class template:
   # initiating instance, with unique elements
   # dynamically set, this allows for dynamic
   # iterations in python scripts
-  def __init__(self, images, template, config):
+  def __init__(self, images, template, config, **kwargs):
     
-    # validate inputs  
+    # validate inputs
     if not os.path.exists(template):
       print("Template image does not exist, check path ...")
       quit()
@@ -42,8 +42,13 @@ class template:
     # split out output directory
     out_dir = self.config['output']
     
+    # set subdirectory based on profile name
+    # this allows iterative processing or multiple
+    # methods or parts of the image (think table + header)
+    sub_dir = self.config['profile_name']
+    
     # feedback continued
-    print(out_dir)
+    print(os.path.join(out_dir, sub_dir))
     print("\n")
     
     # where the model should live
@@ -65,32 +70,43 @@ class template:
     # path - this should be fixed in the docker image
     # from the get go by pulling models from elsewhere
     # (a model generation workflow)
-    shutil.copyfile(
-      "/docker_data_dir/src/weahtr/models/cobecore-V6.traineddata",
-      model_path
-    )
+    #shutil.copyfile(
+    #  "/docker_data_dir/src/weahtr/models/cobecore-V6.traineddata",
+    #  model_path
+    #)
     
     # check and create output directories
-    if not os.path.exists(os.path.join(out_dir, 'homography')):
-      os.makedirs(os.path.join(out_dir, 'homography'), exist_ok=True)
+    if not os.path.exists(os.path.join(out_dir, sub_dir, 'homography')):
+      os.makedirs(os.path.join(out_dir, sub_dir, 'homography'), exist_ok=True)
       
-    if not os.path.exists(os.path.join(out_dir, 'preview')):
-      os.makedirs(os.path.join(out_dir, 'preview'), exist_ok=True)  
+    if not os.path.exists(os.path.join(out_dir, sub_dir, 'preview')):
+      os.makedirs(os.path.join(out_dir, sub_dir, 'preview'), exist_ok=True)  
     
-    if not os.path.exists(os.path.join(out_dir, 'labels')):
-      os.makedirs(os.path.join(out_dir, 'labels'), exist_ok=True)
+    if not os.path.exists(os.path.join(out_dir, sub_dir, 'labels')):
+      os.makedirs(os.path.join(out_dir, sub_dir, 'labels'), exist_ok=True)
     
     # create output paths
-    self.homography_path = os.path.join(out_dir, 'homography')
-    self.preview_path = os.path.join(out_dir, 'preview')
-    self.label_path = os.path.join(out_dir, 'labels')
+    self.homography_path = os.path.join(out_dir, sub_dir, 'homography')
+    self.preview_path = os.path.join(out_dir, sub_dir, 'preview')
+    self.label_path = os.path.join(out_dir, sub_dir, 'labels')
     
     # create log list
-    self.log = []
+    self.log = {}
     
     # create homography dictionary
     self.homography = {}
-    self.method = []
+    
+    # create methods placeholder
+    if 'method' in kwargs:
+      self.method = kwargs['method']
+    
+    # create guides placeholder
+    if 'guides' in kwargs:
+      self.guides = kwargs['guides']
+    
+    # create methods placeholder
+    if 'model' in kwargs:
+      self.model = kwargs['model']
     
     # set basic info such as the list
     # of images to consider and the template to use
@@ -111,7 +127,7 @@ class template:
     
     # set scale ratio
     scale_ratio = self.config['scale_ratio']
-    
+
     # binarize
     image = binarize(
       image,
@@ -123,7 +139,7 @@ class template:
       self.config['threshold']['window_size'],
       self.config['threshold']['C']
     )
-    
+
     # scale images for speed
     # and general accuracy
     image = cv2.resize(image, None, fx = scale_ratio, fy = scale_ratio)
@@ -131,7 +147,7 @@ class template:
     
     # match image sizes
     image, template = match_size(image, template)
-    
+
     # fft transforms
     fft_img, img_mag = calculate_fft(image)
     fft_template, template_mag = calculate_fft(template)
@@ -147,12 +163,12 @@ class template:
     # check warpPolar in opencv
     image_lp = logpolar(img_mag, center, angles, base)
     template_lp = logpolar(template_mag, center, angles, base)
-    
+
     # check order things
     # check phaseCorrelation in opencv
     angle, scale = phase_correlation(template_lp, image_lp)
     scale = base ** scale
-    
+
     # conversion to degrees
     angle = -(float(angle) * 180.0 ) / image_lp.shape[0]
     
@@ -235,10 +251,6 @@ class template:
     # Sort them in the order of their distance
     matches = sorted(matches, key = lambda x:x.distance)
   
-    # Remove not so good matches
-    numGoodMatches = int(len(matches) * self.config['features']['good_match'])
-    matches = matches[:numGoodMatches]
-    
     # Extract location of good matches
     points1 = np.zeros((len(matches), 2), dtype = np.float32)
     points2 = np.zeros((len(matches), 2), dtype = np.float32)
@@ -281,7 +293,7 @@ class template:
     
     return dst
 
-  def __label_cells(self, im, cells, prefix, model):
+  def __label_cells(self, im, cells, prefix, model, slices):
     
     # initiate empty vectores
     text = []
@@ -300,61 +312,87 @@ class template:
       
       try:
         
-       # trap end of table issues 
-       # (when running out of space)
-       if cell['x_max'] > im.shape[1]:
-         cell['x_max'] = int(im.shape[1])
-        
-       if cell['y_max'] > im.shape[0]:
-         cell['y_max'] = int(im.shape[0])
-         
-       # crop image to size
-       crop_im = im[cell['y_min']:cell['y_max'], cell['x_min']:cell['x_max']]
-       crop_im = cv2.cvtColor(crop_im, cv2.COLOR_BGR2RGB)
-
-       # ML based transcription, multi-model selection
-       # with tesseract as the default
-       if model == "tesseract":
-        
-        # grab the base model name
-        model_name, _ = os.path.splitext(self.config['tesseract']['model'])
-         
-        try:
-          ocr_result = pytesseract.image_to_data(
-            crop_im,
-            lang = model_name,
-            config = self.config['tesseract']['config'],
-            output_type='data.frame'
-          )
-    
-          # get results with maximum confidence
-          # assume only one viable result per image
-          # see psm 8 setting and conservative (tight) cropping
-          ocr_result = ocr_result[ocr_result.conf == max(ocr_result.conf)]
+        # trap end of table issues 
+        # (when running out of space)
+        if cell['x_max'] > im.shape[1]:
+          cell['x_max'] = int(im.shape[1])
           
-          # split out the content
-          new_label = ocr_result.text.iloc[0]
-          confidence = ocr_result.conf.iloc[0]
+        if cell['y_max'] > im.shape[0]:
+          cell['y_max'] = int(im.shape[0])
+        
+        # apply padding factors
+        x_pad = int((cell['x_max'] - cell['x_min']) * self.config['x_pad'])
+        y_pad = int((cell['y_max'] - cell['y_min']) * self.config['y_pad'])
+        
+        x_min = cell['x_min'] - x_pad
+        x_max = cell['x_max'] + x_pad
+        y_min = cell['y_min'] - y_pad
+        y_max = cell['y_max'] + y_pad
+        
+        # crop image to size
+        crop_im = im[y_min:y_max, x_min:x_max]
+        crop_im = cv2.cvtColor(crop_im, cv2.COLOR_BGR2RGB)
+        
+        # write data to file
+        filename = os.path.join(
+            self.preview_path,
+            prefix + "_" + self.config['profile_name'] + "_" + str(cell['col']) + "_" + str(cell['row']) + ".jpg"
+        )
+        
+        if slices:
+          cv2.imwrite(filename, crop_im)
+        
+        else:
           
-          if np.isnan(new_label):
-            conf.append(0)
-            text.append('/')
+          # ML based transcription, multi-model selection
+          # with tesseract as the default
+          if model == "tesseract":
+          
+            # grab the base model name
+            model_name, _ = os.path.splitext(self.config['tesseract']['model'])
+           
+            try:
+              ocr_result = pytesseract.image_to_data(
+                crop_im,
+                lang = model_name,
+                config = self.config['tesseract']['config'],
+                output_type='data.frame'
+              )
+        
+              # get results with maximum confidence
+              # assume only one viable result per image
+              # see psm 8 setting and conservative (tight) cropping
+              ocr_result = ocr_result[ocr_result.conf == max(ocr_result.conf)]
+              
+              # split out the content
+              new_label = ocr_result.text.iloc[0]
+              confidence = ocr_result.conf.iloc[0]
+              
+              if np.isnan(new_label):
+                conf.append(0)
+                text.append('/')
+              else:
+                # write label output data to vectors
+                text.append(new_label)
+                conf.append(confidence)
+                
+            except:
+              # write label output data to vectors
+              conf.append(0)
+              text.append('//')
+                  
+          elif model == "easyocr":
+            print("easyocr")
+          
           else:
-            # write label output data to vectors
-            text.append(new_label)
-            conf.append(confidence)
-        
-        except:
-          # write label output data to vectors
-          conf.append(0)
-          text.append('//')
-        
-       # add filename and row / col numbers
-       file_name.append(prefix)
-       col.append(cell['col'])
-       row.append(cell['row'])
-       x.append(cell['x_min'])
-       y.append(cell['y_max'] - (cell['y_max'] - cell['y_min'])/4)
+            print("yolo")
+          
+          # add filename and row / col numbers
+          file_name.append(prefix)
+          col.append(cell['col'])
+          row.append(cell['row'])
+          x.append(cell['x_min'])
+          y.append(cell['y_max'] - (cell['y_max'] - cell['y_min'])/4)
        
       except:
        # Continue to next iteration on fail
@@ -387,133 +425,20 @@ class template:
   #--- public functions ----
   
   ##--- cropping function ----
-    
-  # static variables and private
-  # internal functions
-  def crop(self, images):
 
-    for image in images:
-      image = cv2.imread(images)
-        
-      # black border to make it work
-      # on white matte images
-      image = cv2.copyMakeBorder(
-        image, 500, 500, 500, 500,
-        cv2.BORDER_CONSTANT,
-        None,
-        0
-      )
-      
-      # convert to grayscale (red channel)
-      try:
-        _,_,gray = cv2.split(image)
-      except:
-        gray = image
-  
-      # adaptive threshold the image
-      ret, bw = cv2.threshold(
-        gray, 0, 255,
-        cv2.THRESH_BINARY + cv2.THRESH_OTSU
-      )
-      
-      # first define a working kernel
-      kernel = np.ones((3,3),np.uint8)
-      
-      # find morphological edges using the kernel
-      # and five (5) iterations of the routine
-      edged = cv2.morphologyEx(
-        bw,
-        cv2.MORPH_CLOSE,
-        kernel,
-        iterations = 5
-      )
-      
-      # from this image which is all edges extract
-      # the contours of this center area
-      (contours, _) = cv2.findContours(
-        edged,
-        cv2.RETR_LIST,
-        cv2.CHAIN_APPROX_NONE
-      )
-      
-      # order these by length and use the longest one
-      # to create a bounding rectangle / polygon
-      contours = sorted(contours, key=cv2.contourArea, reverse=True)
-      
-      # get approximate contour
-      for c in contours:
-          p = cv2.arcLength(c, True)
-          
-          # 0.02 is the epsilon factor which determines
-          # the reduction in complexity
-          # which stops when the polygon has only 4 points
-          corners = cv2.approxPolyDP(c, 0.02 * p, True)
-          
-          if len(corners) != 4:
-              raise ValueError("Sheet is not defined by four corners.")
-          else:
-            break
-      
-      # reshuffle corner coordinates
-      corners = corners.reshape((4,2))
-      corners_new = np.zeros((4,2),dtype = np.float32)
-  
-      add = corners.sum(1)
-      corners_new[0] = corners[np.argmin(add)]
-      corners_new[2] = corners[np.argmax(add)]
-  
-      diff = np.diff(corners,axis = 1)
-      corners_new[1] = corners[np.argmin(diff)]
-      corners_new[3] = corners[np.argmax(diff)]
-      
-      # reshuffle coordinates to a set
-      # of points to use in the coordinate
-      # transform mapping
-      x = corners_new[:,0]
-      y = corners_new[:,1]
-      w = int(max(x) - min(x))
-      h = int(max(y) - min(y))
-      x = int(min(x))
-      y = int(min(y))
-  
-      # original coordinate references
-      pts2 = np.float32(
-        [[0,0],
-        [image.shape[1],0],
-        [image.shape[1],image.shape[0]],
-        [0,image.shape[0]]]
-      )
-      
-      # homography calculation based upon the approximate
-      # location of the bounding box of the sheet and
-      # the original dimensions
-      h = cv2.getPerspectiveTransform(corners_new, pts2)
-      
-      # set crop file
-      h_crop_file = os.path.join(self.homography_path, pathname + '_crop.txt')
-  
-      # pad the image to account for
-      # white matte setups
-      im = cv2.copyMakeBorder(
-        im, 500, 500, 500, 500,
-        cv2.BORDER_CONSTANT,
-        None,
-        0
-      )
-  
-      # crop using cropping homography
-      im = cv2.warpPerspective(im, h_crop, None)
-      
-      # return the destination results
-      return h
-  
   # match templates and write homography
   # files to disk to speed up (repeated)
   # processing
-  def match(self, method, preview = False):
+  def match(self, preview = False, **kwargs):
     
-    # set method as state variable
-    self.method = method
+    # set method if not inherited
+    if not hasattr(self, 'method'):
+      # set method as state variable
+      try:
+        self.method = kwargs['method']
+      except:
+        print("No method set in template or function call.")
+        raise
     
     # read template
     template = cv2.imread(self.template, cv2.IMREAD_GRAYSCALE)
@@ -530,7 +455,7 @@ class template:
       # template match the cropped image to
       # a reference template using a method of choice
       try:
-        if method == "features":
+        if self.method == "features":
           h = self.__features(im, template)
         else:
           h = self.__fft(im, template)
@@ -564,11 +489,28 @@ class template:
     with open(h_file, "w") as out:
       json.dump(self.homography, out)
 
-  # label matched templates
-  def label(self, guides, model, preview = False):
+  # process matched templates
+  def process(self, preview = False, slices = False, **kwargs):
+    
+    # set method if not inherited
+    if not hasattr(self, 'guides'):
+      # set method as state variable
+      try:
+        self.guides = kwargs['guides']
+      except:
+        print("No guides location set in template or function call.")
+        raise
+    
+    if not hasattr(self, 'model'):
+      # set method as state variable
+      try:
+        self.model = kwargs['model']
+      except:
+        print("No model set in template or function call.")
+        raise
     
     # Validating all inputs
-    if not os.path.exists(guides):
+    if not os.path.exists(self.guides):
       print("Template guides file does not exist, check path ...")
       quit()
     
@@ -576,7 +518,7 @@ class template:
     template = cv2.imread(self.template, cv2.IMREAD_GRAYSCALE)
     
     # load template guides
-    cells = load_guides(guides)
+    cells = load_guides(self.guides)
     
     # check if file exists, save homography file
     h_file = os.path.join(
@@ -584,13 +526,19 @@ class template:
     )
     
     # Read JSON homography file
-    if os.path.exists(h_file) and len(self.homography) == 0:
-      with open(h_file, "r") as file:
-        self.homography = json.load(file)
+    if len(self.homography) == 0:
+      print("Loading homography file from disk:")
+      try:
+        with open(h_file, "r") as file:
+          self.homography = json.load(file)
+        print("Success !")
+      except:
+        print("Failed !")
+        exit()
     
     # loop over all homography files / images
     # and transform, slice and label the data
-    for image, h in tqdm(self.homography.items(), desc="Labelling data   "):
+    for image, h in tqdm(self.homography.items(), desc="Processing data  "):
         
       # extract basename image
       basename = os.path.basename(image)
@@ -600,9 +548,16 @@ class template:
       matched_image = self.__transform(image, np.array(h))
       
       # label the cells in the table / sheet / header
-      labels = self.__label_cells(matched_image, cells, pathname, model)
+      labels = self.__label_cells(
+        matched_image,
+        cells,
+        pathname,
+        self.model,
+        slices
+      )
       
-      if preview:
+      # only provide a preview when not doing slices
+      if preview and not slices:
         preview_labels(
           matched_image,
           labels,
