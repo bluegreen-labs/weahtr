@@ -91,7 +91,7 @@ class template:
     self.label_path = os.path.join(out_dir, sub_dir, 'labels')
     
     # create log list
-    self.log = {}
+    self.log = []
     
     # create homography dictionary
     self.homography = {}
@@ -423,9 +423,16 @@ class template:
     return df
 
   #--- public functions ----
+  def save_log(self, path):
+    
+    # set filename
+    filename = os.path.join(
+      path, self.config['profile_name'] + "_log.json" 
+    )
+    
+    with open(filename, "w") as out:
+      json.dump(self.log, out)
   
-  ##--- cropping function ----
-
   # match templates and write homography
   # files to disk to speed up (repeated)
   # processing
