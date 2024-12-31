@@ -6,10 +6,11 @@
 # might conflict with a tensorflow Install
 # if acceleration is desired
 
-# FROM ubuntu/jammy
+#FROM ubuntu/jammy
 FROM nvidia/cuda:12.1.0-cudnn8-runtime-ubuntu22.04
 #FROM nvcr.io/nvidia/pytorch:24.05-py3
-# FROM pytorch/pytorch:2.3.1-cuda12.1-cudnn8-devel
+#FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
+#FROM pytorch/pytorch:2.3.1-cuda12.1-cudnn8-devel
 
 # copy package content
 COPY environment.yml .

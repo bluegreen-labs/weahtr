@@ -7,12 +7,15 @@ channels:
 dependencies:
   - python>=3.11
   - conda>=23.5.2
+  - scikit-learn
   - matplotlib
   - setuptools
   - requests
   - pandas
   - pip
+  - datasets
   - transformers
+  - jiwer
   - wheel
   - scipy
   - numpy
@@ -25,3 +28,7 @@ dependencies:
   - torchaudio
   - pytorch-cuda=12.1
   - pyyaml
+  - tiktoken
+  - protobuf
+  - pip:
+     - evaluate

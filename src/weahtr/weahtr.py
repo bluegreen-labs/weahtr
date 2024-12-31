@@ -333,13 +333,12 @@ class template:
         crop_im = im[y_min:y_max, x_min:x_max]
         crop_im = cv2.cvtColor(crop_im, cv2.COLOR_BGR2RGB)
         
-        # write data to file
-        filename = os.path.join(
-            self.preview_path,
-            prefix + "_" + self.config['profile_name'] + "_" + str(cell['col']) + "_" + str(cell['row']) + ".jpg"
-        )
-        
         if slices:
+          # write data to file
+          filename = os.path.join(
+              self.preview_path,
+              prefix + "_" + self.config['profile_name'] + "_" + str(cell['col']) + "_" + str(cell['row']) + ".jpg"
+          )
           cv2.imwrite(filename, crop_im)
         
         else:
@@ -395,30 +394,30 @@ class template:
           y.append(cell['y_max'] - (cell['y_max'] - cell['y_min'])/4)
        
       except:
-       # Continue to next iteration on fail
-       # happens when index runs out
+       # Continue to next iteration
        continue
     
-    # concat data into pandas data frame
-    df = pd.DataFrame(
-      {'text':text,
-       'conf':conf,
-       'col':col,
-       'row':row,
-       'x': x,
-       'y': y,
-       'file':file_name
-      }
-    )
-  
-    # construct path
-    filename = os.path.join(
-      self.label_path,
-      prefix + "_" + self.config['profile_name'] + "_labels.csv"
-    )
+    if not slices:
+      # concat data into pandas data frame
+      df = pd.DataFrame(
+        {'text':text,
+         'conf':conf,
+         'col':col,
+         'row':row,
+         'x': x,
+         'y': y,
+         'file':file_name
+        }
+      )
     
-    # write data to disk
-    df.to_csv(filename, sep=',', index = False)
+      # construct path
+      filename = os.path.join(
+        self.label_path,
+        prefix + "_" + self.config['profile_name'] + "_labels.csv"
+      )
+      
+      # write data to disk
+      df.to_csv(filename, sep=',', index = False)
     
     return df
 

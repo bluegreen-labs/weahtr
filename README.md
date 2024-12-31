@@ -28,14 +28,22 @@ git clone https://github.com/bluegreen-labs/weaHTR_workflow.git
 
 The dockerfile included provides a (GPU) torch setup. You can build this docker image using the below command. This will download the NVIDIA CUDA drivers for GPU support, the tidyverse, rstudio IDE and quarto publishing environment. Note that this setup will require some time to build given the the large downloads involved. Once build locally no further downloads will be required.
 
-```
+```bash
 docker build -f Dockerfile -t weahtr .
 ```
 
+Make sure to have interfacing libraries running.
+
 To spin up a GPU docker image use in the project directory:
 
-```
+```bash
 docker run -it --gpus all -v $(pwd):/workspace weahtr bash
+```
+
+For indepent installs using conda
+
+```bash
+conda env create -f environment.yml
 ```
 
 ## Workflow
