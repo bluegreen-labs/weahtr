@@ -358,10 +358,10 @@ class setup():
           # augmentation is optional as soft validation
           # metric for the processing used - results
           # should be consistent, failure to be consistent
-          # can be used as an additional metric of confidence
+          # can be used as an 
           if self.config['augmentation'] == True:
+            print("test")
             
-          
           # ML based transcription, multi-model selection
           # with tesseract as the default
           if model == "tesseract":
