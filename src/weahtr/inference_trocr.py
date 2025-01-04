@@ -15,10 +15,12 @@ from transformers import AdamW
 from tqdm import tqdm
 from utils import *
 
-root_dir = "../../output/format_1_month/traindata/test/Janvier/"
+root_dir = "../../output/format_1_month/traindata/test/Mai/"
 
 # list all files
 files = glob.glob(os.path.join(root_dir, "*.jpg"))
+
+def predict_trocr(img):
 
 # load network
 processor = TrOCRProcessor.from_pretrained("microsoft/trocr-base-handwritten")
@@ -48,6 +50,7 @@ model.config.length_penalty = 2.0
 model.config.num_beams = 4
 
 for f in files:
+ 
  image = cv2.imread(f)
 # image = binarize(image)
  #image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
@@ -55,6 +58,7 @@ for f in files:
  return_dict = model.generate(pixel_values, output_scores = True, return_dict_in_generate=True)
  ids, scores = return_dict['sequences'], return_dict['sequences_scores']
  generated_text = processor.batch_decode(ids, skip_special_tokens=True)[0]
+ print(f)
  print(generated_text)
  
  # scores are exponentiated as confidence values are logs

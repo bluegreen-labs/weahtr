@@ -67,6 +67,11 @@ fft:
 x_pad: 0
 y_pad: 0
 
+#--- machine learning settings ---
+
+# use image augmentation during custom training
+augmentation: True
+
 # sets the tesseract data directory
 # to which to transfer the desired
 # model and the command line config
@@ -75,3 +80,11 @@ tesseract:
  path: "/usr/share/tesseract-ocr/5/tessdata/"
  model: "cobecore-V6.traineddata"
  config: '--psm 8 -c tessedit_char_whitelist=0123456789.,'
+
+easyocr:
+ path: "/usr/share/tesseract-ocr/5/tessdata/"
+ model: "modelfile"
+
+trocr:
+ path: "/usr/share/tesseract-ocr/5/tessdata/"
+ model: "modelfile"

@@ -8,9 +8,12 @@ import pytesseract
 import shutil
 import requests
 from utils import *
+from model import *
+
+os.environ["NO_ALBUMENTATIONS_UPDATE"] = "1"
 
 # template processing class
-class template:
+class setup():
   
   # initiating instance, with unique elements
   # dynamically set, this allows for dynamic
@@ -299,6 +302,7 @@ class template:
     text = []
     conf = []
     file_name = []
+    augmentation = []
     row = []
     col = []
     x = []
@@ -342,6 +346,21 @@ class template:
           cv2.imwrite(filename, crop_im)
         
         else:
+          
+          # create empty crop stack and add
+          # the original and the binarized
+          # version (these are the most common
+          # forms and will always be processed)
+          crop_stack = []
+          crop_stack.append(crop_im)
+          crop_stack.append(binarize(crop_im))
+          
+          # augmentation is optional as soft validation
+          # metric for the processing used - results
+          # should be consistent, failure to be consistent
+          # can be used as an additional metric of confidence
+          if self.config['augmentation'] == True:
+            
           
           # ML based transcription, multi-model selection
           # with tesseract as the default

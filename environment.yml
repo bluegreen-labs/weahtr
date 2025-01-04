@@ -3,32 +3,40 @@ channels:
   - conda-forge
   - pytorch
   - nvidia
+# ignore default due to
+# subscription service shenanigans
 
 dependencies:
+# General python settings
   - python>=3.11
   - conda>=23.5.2
+  - wheel
+  - pip
+# Data science / computer vision components
   - scikit-learn
   - matplotlib
-  - setuptools
-  - requests
-  - pandas
-  - pip
-  - datasets
-  - transformers
-  - jiwer
-  - wheel
   - scipy
   - numpy
+  - pandas
   - opencv
-  - easyocr
-  - pytesseract
-  - ultralytics
+# utilities
+  - setuptools
+  - requests
+  - pyyaml
+# ML components
   - pytorch
   - torchvision
   - torchaudio
   - pytorch-cuda=12.1
-  - pyyaml
   - tiktoken
   - protobuf
+  - albumentations
+  - datasets
+  - transformers
+  - jiwer
+  - ultralytics # reconsider for deletion
+# OCR components
+  - easyocr
+  - pytesseract
   - pip:
      - evaluate
