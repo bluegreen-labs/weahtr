@@ -4,6 +4,7 @@ import pandas as pd
 import cv2
 import math
 import scipy.ndimage.interpolation as ndii
+from collections import Counter
 
 #--- log-polar fft template matching utility functions ---
 
@@ -310,3 +311,9 @@ def crop_matte(image):
   
   # return the destination results
   return (im, h)
+
+# get most common element from a list of strings
+def most_common(lst):
+    data = Counter(lst)
+    return data.most_common(1)[0][0]
+

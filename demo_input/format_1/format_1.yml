@@ -58,7 +58,7 @@ fft:
  translation_tolerance: 1000 # only allow translations X/Y pixels or less
  scale_tolerance: 2 # scale factor can not exceed this value
 
-#--- machine learning settings ---
+#--- transcription settings ---
 
 # padding factor fraction of the width height to
 # be added on either side of the selection
@@ -67,24 +67,32 @@ fft:
 x_pad: 0
 y_pad: 0
 
+# soft validation, soft validation creates N (10)
+# augmented images from the original, these
+# are slightly altered versions which should
+# give an idea of the robustness of the
+# transcription (only the majority class, and
+# the mean confidence values are stored)
+soft_val: 10
+
 #--- machine learning settings ---
 
-# use image augmentation during custom training
+# training settings
 augmentation: True
+learning_rate:
+epochs: 10
+batch_size: 4
 
-# sets the tesseract data directory
-# to which to transfer the desired
-# model and the command line config
-# options to pass to tesseract
+# prediction settings
+device: "cpu"
+
+# model specific settings
 tesseract:
  path: "/usr/share/tesseract-ocr/5/tessdata/"
  model: "cobecore-V6.traineddata"
  config: '--psm 8 -c tessedit_char_whitelist=0123456789.,'
 
-easyocr:
- path: "/usr/share/tesseract-ocr/5/tessdata/"
- model: "modelfile"
-
 trocr:
- path: "/usr/share/tesseract-ocr/5/tessdata/"
- model: "modelfile"
+ custom_path: "./models/TrOCR/"
+ model: "microsoft/trocr-base-stage1"
+ processor: "microsoft/trocr-base-handwritten"

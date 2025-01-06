@@ -38,6 +38,7 @@ class setup():
     with open(config, 'r') as file:
       try:
         self.config = yaml.safe_load(file)
+        self.config_file = config
       except:
         print("No yaml config file, or badly formatted YML file (check all quotes) ...")
         quit()
@@ -296,7 +297,7 @@ class setup():
     
     return dst
 
-  def __label_cells(self, im, cells, prefix, model, slices):
+  def __label_cells(self, im, cells, prefix, slices, m):
     
     # initiate empty vectores
     text = []
@@ -307,14 +308,16 @@ class setup():
     col = []
     x = []
     y = []
-  
+    text_soft_val = []
+    conf_soft_val = []
+    
     # generates cropped sections based upon
     # row and column locations
     t = tqdm(cells.iterrows(), total=cells.shape[0], leave = False)
     for index, cell in t:
       t.set_description("Processing column %i, row %i " % (cell['col'], cell['row']), refresh=True)
       
-      try:
+      try: # traps failures to crop properly
         
         # trap end of table issues 
         # (when running out of space)
@@ -338,7 +341,8 @@ class setup():
         crop_im = cv2.cvtColor(crop_im, cv2.COLOR_BGR2RGB)
         
         if slices:
-          # write data to file
+          # write data slices to file
+          # for post processing such as citizen science or model training
           filename = os.path.join(
               self.preview_path,
               prefix + "_" + self.config['profile_name'] + "_" + str(cell['col']) + "_" + str(cell['row']) + ".jpg"
@@ -346,81 +350,70 @@ class setup():
           cv2.imwrite(filename, crop_im)
         
         else:
-          
-          # create empty crop stack and add
-          # the original and the binarized
-          # version (these are the most common
-          # forms and will always be processed)
-          crop_stack = []
-          crop_stack.append(crop_im)
-          crop_stack.append(binarize(crop_im))
-          
-          # augmentation is optional as soft validation
-          # metric for the processing used - results
-          # should be consistent, failure to be consistent
-          # can be used as an 
-          if self.config['augmentation'] == True:
-            print("test")
             
-          # ML based transcription, multi-model selection
-          # with tesseract as the default
-          if model == "tesseract":
+          try: # traps transcription failures
           
-            # grab the base model name
-            model_name, _ = os.path.splitext(self.config['tesseract']['model'])
-           
-            try:
-              ocr_result = pytesseract.image_to_data(
-                crop_im,
-                lang = model_name,
-                config = self.config['tesseract']['config'],
-                output_type='data.frame'
-              )
-        
-              # get results with maximum confidence
-              # assume only one viable result per image
-              # see psm 8 setting and conservative (tight) cropping
-              ocr_result = ocr_result[ocr_result.conf == max(ocr_result.conf)]
+            # transcription based upon model forwarded
+            # and selected in config
+            label, confidence = m.predict(crop_im)
+            text.append(label)
+            conf.append(round(confidence, 3))
+            
+            # soft validation runs
+            if self.config['soft_val'] > 0:
               
-              # split out the content
-              new_label = ocr_result.text.iloc[0]
-              confidence = ocr_result.conf.iloc[0]
-              
-              if np.isnan(new_label):
-                conf.append(0)
-                text.append('/')
-              else:
-                # write label output data to vectors
-                text.append(new_label)
-                conf.append(confidence)
+              text_tmp = []
+              conf_tmp = []
+              majority_frac = []
+            
+              i = 1
+              while i <= self.config['soft_val']:
+                # augment the original image
+                # using the train transform
+                crop_im_aug = train_transform(image = crop_im)['image']
+    
+                # classification
+                label_aug, confidence_aug = m.predict(crop_im)
+                text_tmp.append(label_aug)
+                conf_tmp.append(confidence_aug)
+                i += 1
+    
+                label_aug = most_common(text_tmp)
+                conf_aug = np.average(conf_tmp)
                 
-            except:
-              # write label output data to vectors
-              conf.append(0)
-              text.append('//')
-                  
-          elif model == "easyocr":
-            print("easyocr")
-          
-          else:
-            print("yolo")
-          
+                # add the number of classes detected
+                majority_frac.append(
+                  round(1 - len(list(set(label_aug)))/self.config['soft_val'], 3)
+                )
+                
+                text_soft_val.append(label_aug)
+                conf_soft_val.append(round(conf_aug, 3))
+                
+          except:
+            # write label output data to vectors
+            conf.append(0)
+            text.append('//')
+                
           # add filename and row / col numbers
           file_name.append(prefix)
           col.append(cell['col'])
           row.append(cell['row'])
           x.append(cell['x_min'])
           y.append(cell['y_max'] - (cell['y_max'] - cell['y_min'])/4)
-       
+     
       except:
        # Continue to next iteration
        continue
     
     if not slices:
+      
       # concat data into pandas data frame
       df = pd.DataFrame(
         {'text':text,
-         'conf':conf,
+         'conf': conf,
+         'text_val': text_soft_val,
+         'conf_val': conf_soft_val,
+         'majority_frac_val': majority_frac,
          'col':col,
          'row':row,
          'x': x,
@@ -561,6 +554,14 @@ class setup():
         print("Failed !")
         exit()
     
+    # first four
+    self.homography = dict(list(self.homography.items())[:4])
+    
+    # preload model, forwarded to labeller
+    # shitty setup, should be fixed - read up on class
+    # inheritance
+    m = model(self.model, self.config_file)
+    
     # loop over all homography files / images
     # and transform, slice and label the data
     for image, h in tqdm(self.homography.items(), desc="Processing data  "):
@@ -572,15 +573,6 @@ class setup():
       # transform the image using the provided homography
       matched_image = self.__transform(image, np.array(h))
       
-      # label the cells in the table / sheet / header
-      labels = self.__label_cells(
-        matched_image,
-        cells,
-        pathname,
-        self.model,
-        slices
-      )
-      
       # only provide a preview when not doing slices
       if preview and not slices:
         preview_labels(
@@ -588,3 +580,14 @@ class setup():
           labels,
           os.path.join(self.label_path, pathname + ".jpg")
           )
+      else:
+        # label the cells in the table / sheet / header
+        if self.model == "trocr":
+          labels = self.__label_cells(
+            matched_image,
+            cells,
+            pathname,
+            slices,
+            m = m # forward the model
+          )
+      
