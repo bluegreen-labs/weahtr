@@ -1,8 +1,8 @@
 name: weahtr
 channels:
   - conda-forge
-  - pytorch
-  - nvidia
+#  - pytorch-nightly
+
 # ignore default due to
 # subscription service shenanigans
 
@@ -24,19 +24,17 @@ dependencies:
   - requests
   - pyyaml
 # ML components
-  - pytorch
-  - torchvision
-  - torchaudio
-  - pytorch-cuda=12.1
+  - pytorch-lightning
   - tiktoken
   - protobuf
   - albumentations
   - datasets
   - transformers
   - jiwer
-  - ultralytics # reconsider for deletion
 # OCR components
-  - easyocr
   - pytesseract
   - pip:
      - evaluate
+     - torch
+     - torchvision
+

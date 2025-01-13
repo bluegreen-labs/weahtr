@@ -1,12 +1,14 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
 [project]
-name = "weaHTR"
+name = "weahtr"
 version = "0.0.1"
 authors = [
-  {name="Koen Hufkens",
-   email="koen.hufkens@gmail.com" 
-   },
+  {name="Koen Hufkens", email="koen.hufkens@gmail.com"},
 ]
-description = "Weather data handwritten text recognition transcription framework"
+description = "Weather HTR framework"
 readme = "README.md"
 requires-python = ">=3.8"
 classifiers = [
@@ -16,5 +18,5 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/bluegreen-labs/weaHTRpy"
-Issues = "https://github.com/bluegreen-labs/weaHTRpy/issues"
+Homepage = "https://github.com/bluegreen-labs/weaHTR"
+Issues = "https://github.com/bluegreen-labs/weaHTR/issues"

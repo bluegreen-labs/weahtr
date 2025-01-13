@@ -26,6 +26,8 @@ Clone the package to your local directory.
 git clone https://github.com/bluegreen-labs/weaHTR_workflow.git
 ```
 
+### Setup compute environments
+
 The dockerfile included provides a (GPU) torch setup. You can build this docker image using the below command. This will download the NVIDIA CUDA drivers for GPU support, the tidyverse, rstudio IDE and quarto publishing environment. Note that this setup will require some time to build given the the large downloads involved. Once build locally no further downloads will be required.
 
 ```bash
@@ -37,14 +39,32 @@ Make sure to have interfacing libraries running.
 To spin up a GPU docker image use in the project directory:
 
 ```bash
-docker run -it --gpus all -v $(pwd):/workspace weahtr bash
+docker run -it --rm --gpus all -v $(pwd):/data weahtr bash
 ```
 
-For indepent installs using conda
+For independent installs using conda
 
 ```bash
 conda env create -f environment.yml
 ```
+
+### Loading the package locally
+
+For now no `pip` based install is supported you can install the package by working
+in editor mode (if under development), or through a linked `pip` install.
+
+For editor mode use:
+
+```bash
+pip install -e /path/to/pkg
+```
+
+For a static local install use:
+```bash
+pip install mypackage --no-index --find-links /path/to/pkg
+```
+
+> When using a Docker image you will have to install the package in every new session.
 
 ## Workflow
 
@@ -62,13 +82,13 @@ import glob
 import weahtr
 
 # list files to process
-images =  glob.glob("/workspace/demo_input/format_1/*.jpg", recursive=True)
+images =  glob.glob("/data/demo_input/format_1/*.jpg", recursive=True)
 
 # initiate the setup
 t = template.template(
   images = images,
-  template = "/docker_data_dir/demo_input/format_1.jpg",
-  config = "/docker_data_dir/demo_input/format_config.yml"
+  template = "/data/demo_input/format_1.jpg",
+  config = "/data/demo_input/format_config.yml"
   )
 
 # match all templates, write homography datat to file

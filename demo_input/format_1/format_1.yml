@@ -77,14 +77,14 @@ soft_val: 10
 
 #--- machine learning settings ---
 
-# training settings
+# trocr training settings
 augmentation: True
-learning_rate:
+learning_rate: 5e-5
 epochs: 10
 batch_size: 4
 
 # prediction settings
-device: "cpu"
+device: "cuda"
 
 # model specific settings
 tesseract:
@@ -93,6 +93,6 @@ tesseract:
  config: '--psm 8 -c tessedit_char_whitelist=0123456789.,'
 
 trocr:
- custom_path: "./models/TrOCR/"
+ custom_path: "./models/"
  model: "microsoft/trocr-base-stage1"
  processor: "microsoft/trocr-base-handwritten"

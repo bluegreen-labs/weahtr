@@ -10,19 +10,19 @@ from transformers import VisionEncoderDecoderModel
 from transformers import default_data_collator
 from evaluate import load
 import cv2
+import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from transformers import TrOCRProcessor
 from transformers import AdamW
 from tqdm import tqdm
-from utils import *
-from transform import *
-from dataloader import *
 import yaml
 from transformers.utils import logging
 logging.set_verbosity_error() 
 
-#os.environ["TRANSFORMERS_VERBOSITY"] = "error"
+from weahtr.utils import *
+from weahtr.transform import *
+from weahtr.dataloader import *
 
 class model_loader:
   def load_trocr(processor_model, encoder_model, device, train = True):
@@ -31,7 +31,10 @@ class model_loader:
       if train:
         model = VisionEncoderDecoderModel.from_pretrained(encoder_model)
       else:
-        model = VisionEncoderDecoderModel.from_pretrained(encoder_model, local_files_only = True)
+        model = VisionEncoderDecoderModel.from_pretrained(
+          encoder_model,
+          local_files_only = True
+        )
       
       model.to(device)
             
@@ -177,7 +180,7 @@ class model:
     # optimizer
     optimizer = torch.optim.AdamW(
       model.parameters(),
-      lr=self.config['learning_rate']
+      lr = float(self.config['learning_rate'])
     )
     
     for epoch in range(self.config['epochs']):  # loop over the dataset multiple times
@@ -187,7 +190,7 @@ class model:
        for batch in tqdm(train_dataloader):
           # get the inputs
           for k,v in batch.items():
-            batch[k] = v.to(self.device)
+            batch[k] = v.to(self.config['device'])
     
           # forward + backward + optimize
           outputs = model(**batch)

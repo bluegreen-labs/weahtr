@@ -4,16 +4,16 @@ import numpy as np
 import pandas as pd
 import cv2
 from tqdm import tqdm
-import pytesseract
 import shutil
 import requests
-from utils import *
-from model import *
+
+from weahtr.utils import *
+from weahtr.model import *
 
 os.environ["NO_ALBUMENTATIONS_UPDATE"] = "1"
 
 # template processing class
-class setup():
+class template():
   
   # initiating instance, with unique elements
   # dynamically set, this allows for dynamic
@@ -59,25 +59,20 @@ class setup():
     model_path = os.path.join(
          self.config['tesseract']['path'],
          self.config['tesseract']['model']
-      )
-      
-    #model_source = os.path.join("/tmp", self.config['tesseract']['model'])
-    # 
-    # base_url_tesseract = "/"
-    # url = os.path.join(base_url_tesseract, self.config['tesseract']['model'])
-    # r = requests.get(url)
-    # 
-    # with open(model_path, 'wb') as f:
-    #     f.write(r.content)
+    )
     
-    # QUICK FIX: copy model data to the correct docker
-    # path - this should be fixed in the docker image
-    # from the get go by pulling models from elsewhere
-    # (a model generation workflow)
-    #shutil.copyfile(
-    #  "/docker_data_dir/src/weahtr/models/cobecore-V6.traineddata",
-    #  model_path
-    #)
+    # check if in docker, otherwise skip
+    if os.path.exists('/.dockerenv'):
+      # QUICK FIX: copy model data to the correct docker
+      # path - this should be fixed in the docker image
+      # from the get go by pulling models from elsewhere
+      # (a model generation workflow)
+      shutil.copyfile(
+        model_path,
+        "/usr/share/tesseract-ocr/5/tessdata/"
+      )
+    else:
+      print("Not in a Docker image, tesseract runs will fail...")
     
     # check and create output directories
     if not os.path.exists(os.path.join(out_dir, sub_dir, 'homography')):

@@ -7,9 +7,8 @@
 # if acceleration is desired
 
 #FROM ubuntu/jammy
-FROM nvidia/cuda:12.1.0-cudnn8-runtime-ubuntu22.04
-#FROM nvcr.io/nvidia/pytorch:24.05-py3
-#FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
+#FROM nvidia/cuda:12.1.0-cudnn8-runtime-ubuntu22.04
+FROM nvidia/cuda:12.6.3-cudnn-runtime-ubuntu22.04
 #FROM pytorch/pytorch:2.3.1-cuda12.1-cudnn8-devel
 
 # copy package content
@@ -41,3 +40,7 @@ RUN /bin/bash ~/miniconda.sh -b -p /opt/conda
 RUN /opt/conda/bin/conda env create -f environment.yml
 RUN echo "source activate weahtr" > ~/.bashrc
 ENV PATH $CONDA_DIR/bin:$PATH
+
+# Set the working directory on start
+# assumes that people follow the directions!
+WORKDIR /data

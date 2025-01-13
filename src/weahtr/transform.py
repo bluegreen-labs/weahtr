@@ -1,11 +1,10 @@
 import os, random
 import cv2
-from utils import *
 os.environ["NO_ALBUMENTATIONS_UPDATE"] = "1"
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from albumentations.core.transforms_interface import ImageOnlyTransform
-from utils import *
+from weahtr.utils import *
 
 # define binarization to be included in the transform
 class Binarize(ImageOnlyTransform):
