@@ -1,7 +1,4 @@
-# TrOCR model training and inference class
-# model training routines depend on the
-# underlying model and framework and are
-# described in other files
+# Data generator class
 import os, glob, random
 import cv2
 import numpy as np
@@ -9,12 +6,8 @@ import pandas as pd
 import albumentations as A
 import torch
 from torchvision import datasets, transforms
-
-logging.set_verbosity_error() 
-
-from weahtr.utils import *
+os.environ["NO_ALBUMENTATIONS_UPDATE"] = "1"
 from weahtr.transform import *
-from weahtr.dataloader import *
 
 class generator:
   def __init__(self,
@@ -26,10 +19,11 @@ class generator:
     ):
     
     # initiate things
-    self.data_path = unipen_path
+    self.data_path = data_path
     self.background = background
     self.decimal = decimal
     self.sign = sign
+    self.values = values
     
     # TODO validate paths!!
   
@@ -39,26 +33,22 @@ class generator:
     path
     ):
     
-    # TODO clean up throughout
-    values= self.values,
-    unipen= self.unipen_path,
-    include_decimal = self.decimal,
-    include_minus = self.sign
-    
-    # load the UNIPEN decimals
+    # load the UNIPEN decimals/sign images
     comma = glob.glob(os.path.join(self.data_path, "UNIPEN/comma/*.png"))
     point = glob.glob(os.path.join(self.data_path, "UNIPEN/point/*.png"))
     minus = glob.glob(os.path.join(self.data_path, "UNIPEN/minus/*.png"))
     
     # read in the background grid image and apply
     # the random transform to the data
-    if self.background not None:
-      background = cv2.imread("grid_background.jpg")
-      background = cv2.cvtColor(self.background, cv2.COLOR_BGR2RGB)
+    if self.background is not None:
+      background = cv2.imread(self.background)
+      background = cv2.cvtColor(background, cv2.COLOR_BGR2RGB)
       
       # random sample of 200x200 from background image
       background = transform_grid(image=background)['image']
     
+    # fixed width and height, if you change these change
+    # the transform_grid() function as well
     height = 200
     width = 200
     
@@ -79,10 +69,11 @@ class generator:
       )
     
     # Create a DataLoader to load the dataset in batches
+    # randomly with a batch size of 1
     train_loader_pytorch = torch.utils.data.DataLoader(
       mnist,
-      batch_size=1,
-      shuffle=True
+      batch_size = 1,
+      shuffle = True
       )
     
     # build the number backwards from the last decimal to the decimal point
@@ -167,7 +158,7 @@ class generator:
       tmp = blank_image
       tmp[:,:, 0] = numbers
       
-      start_x = (width - (values + 1) * 40)
+      start_x = (width - (self.values + 1) * 40)
       if start_x < x:
         start_x = x + 1
       
@@ -185,7 +176,7 @@ class generator:
     value = ''.join(digits)
     
     # check conversion of formats
-    filename = os.path.join(path, value + '.png')
+    filename = os.path.join(path, "images", value + '.png')
     cv2.imwrite(filename, dst)
     
     # join digits
@@ -202,10 +193,12 @@ class generator:
     # create empty lists
     text = []
     filename = []
-  
+    
     # check if paths exists, if not error
     # if path exists create sub-folder images
     # to store the images
+    if not os.path.exists(os.path.join(path, 'images')):
+      os.makedirs(os.path.join(path, 'images'), exist_ok=True)
   
     # cover the range of random samples
     # write to lists
@@ -221,7 +214,7 @@ class generator:
     # convert to dataframe and save in image directory
     df = pd.DataFrame(
       np.column_stack(
-        [filename, labels]), 
+        [filename, text]), 
         columns=['file_name', 'text']
       )
     

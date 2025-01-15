@@ -126,7 +126,7 @@ from the torchvision library to include all handwritten MNIST numbers.
 
 ```python
 # import libraries
-from weahtr import generator
+from weahtr.generator import generator
 
 # initiate the setup
 # listing the UNIPEN path
