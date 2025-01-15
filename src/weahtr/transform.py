@@ -6,7 +6,7 @@ from albumentations.pytorch import ToTensorV2
 from albumentations.core.transforms_interface import ImageOnlyTransform
 from weahtr.utils import *
 
-# define binarization to be included in the transform
+# define binarization to be included in the training transform
 class Binarize(ImageOnlyTransform):
    def __init__(self, window_size, C, p = 0.5):
       super().__init__(always_apply = True, p=1)
@@ -69,4 +69,92 @@ train_transform = A.Compose([
       p=0.5)
   ], p=1),
   A.Blur(blur_limit=5,p=0.25),
+])
+
+#--- transforms for the number generator
+
+transform_number = A.Compose([
+  # always resize to a fixed 40px
+  # first
+  A.Resize(
+    height=65,
+    width=65,
+    interpolation=1,
+    p=1.0
+  ),
+  A.Rotate(
+    limit=(-4, 4),
+    interpolation=1,
+    border_mode=3,
+    p=0.5,
+  ),
+  # 20% tolerance on scaling
+  # to introduce size variability
+  A.RandomScale(
+    scale_limit=0.2, 
+    interpolation=1,
+    p=0.8,
+  ),
+  A.GaussianBlur(
+    blur_limit=(5, 13),
+    p=0.5
+  )
+])
+
+transform_sign = A.Compose([
+  # always resize to a fixed 40px
+  # first
+  A.Resize(
+    height=30,
+    width=30,
+    interpolation=1,
+    p=1.0
+  ),
+  A.Rotate(
+    limit=(-4, 4),
+    interpolation=1,
+    border_mode=3,
+    p=0.5,
+  ),
+  # 20% tolerance on scaling
+  # to introduce size variability
+  A.RandomScale(
+    scale_limit=0.2, 
+    interpolation=1,
+    p=0.8,
+  ),
+  A.GaussianBlur(
+    blur_limit=(1, 11),
+    p=0.5
+  )
+])
+
+# random subsample of a background
+# grid, including mild rotation
+transform_grid = A.Compose([
+  A.Rotate(
+    limit=(-10, 10),
+    interpolation=1,
+    border_mode=3,
+    p=0.2,
+  ),
+  A.RandomCrop(
+        height=200,
+        width=200,
+        always_apply=None,
+        p=1.0
+   )
+])
+
+transform_image = A.Compose([
+  A.GaussNoise(
+    var_limit=(10.0, 50.0),
+    mean=0,
+    p=0.5
+  ),
+  A.RandomBrightnessContrast(
+    brightness_limit=(-0.5, 0.5),
+    contrast_limit=(-0.5, 0.5),
+    p=0.5
+  )
 ])
