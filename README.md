@@ -115,8 +115,9 @@ In order to increase representation of handwritten text recognition one can use
 synthetic data as compiled from handwritten text databases. The package includes
 a functions `generate()` in the generator class which generates random numbers
 and their matching table of labels in a CSV file. The generator uses MNIST and
-[UNIPEN](https://github.com/sueiras/handwritting_characters_database) data to
-compile these random images. The UNIPEN data only include decimals (.,) and signs
+[UNIPEN](https://github.com/sueiras/handwritting_characters_database) data 
+formatted by Sueiras et al. 2016 to compile these random images. 
+The UNIPEN data only include decimals (.,) and signs
 (-) to be used as additional modifiers, where MNIST data is dynamically loaded
 from the torchvision library to include all handwritten MNIST numbers.
 

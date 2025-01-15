@@ -105,5 +105,5 @@ ENV/
 
 # data
 output/
-data/
-
+data/format_1/
+data/character_training_data/
