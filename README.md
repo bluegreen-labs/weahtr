@@ -2,6 +2,11 @@
 
 A workflow for handwritten text recognition (HTR) of weather records. The presented workflow provides a set of end to end instructions to follow in order to automatically transcribe your weather records using machine learning.
 
+> [!CAUTION]
+> This python package is a consolidation of previously dispersed script components written across years.
+> Although consolidated, gaps in documentation and usability considerations exist. For example, paths
+> are note always validated and arguments might not have defaults.
+
 ## Introduction
 
 Vast amounts of historical weather records remain archived and unexplored. Despite advances in the recognition of (handwritten) text in general the case of tabulated weather data remains challenging. The data is exact, provides limited contextual clues and errors propagate due to easy misinterpretation of table layouts due to messy formats, deterioration of paper and other factors. Retaining context is therefore key to quality assurance of the data retained within these weather records.
@@ -28,7 +33,7 @@ git clone https://github.com/bluegreen-labs/weaHTR_workflow.git
 
 ### Setup compute environments
 
-The dockerfile included provides a (GPU) torch setup. You can build this docker image using the below command. This will download the NVIDIA CUDA drivers for GPU support, the tidyverse, rstudio IDE and quarto publishing environment. Note that this setup will require some time to build given the the large downloads involved. Once build locally no further downloads will be required.
+The Dockerfile included provides a (GPU) torch setup. You can build this docker image using the below command. This will download the NVIDIA CUDA drivers for GPU support, the tidyverse, rstudio IDE and quarto publishing environment. Note that this setup will require some time to build given the the large downloads involved. Once build locally no further downloads will be required.
 
 ```bash
 docker build -f Dockerfile -t weahtr .
@@ -91,7 +96,7 @@ t = template.template(
   config = "/data/demo_input/format_config.yml"
   )
 
-# match all templates, write homography datat to file
+# match all templates, write homography data to file
 t.match(method = "features")
 ```
 Details will be stored in the homography directory of the output folder
@@ -103,3 +108,44 @@ Details will be stored in the homography directory of the output folder
 t.label(method = "tesseract")
 ```
 7. Screen the logs and visual output for [quality control]()
+
+## Number generator
+
+In order to increase representation of handwritten text recognition one can use
+synthetic data as compiled from handwritten text databases. The package includes
+a functions `generate()` in the generator class which generates random numbers
+and their matching table of labels in a CSV file. The generator uses MNIST and
+[UNIPEN](https://github.com/sueiras/handwritting_characters_database) data to
+compile these random images. The UNIPEN data only include decimals (.,) and signs
+(-) to be used as additional modifiers, where MNIST data is dynamically loaded
+from the torchvision library to include all handwritten MNIST numbers.
+
+> [!WARNING]
+> Paths are not validated for now. Make sure paths exist.
+
+```python
+# import libraries
+from weahtr import generator
+
+# initiate the setup
+# listing the UNIPEN path
+# generating numbers up to 3 digits long
+# with a decimal separator and random sign
+g = generator(
+  data_path = "input/data",
+  background = "background_image.png",
+  values = 3,
+  decimal = True,
+  sign = True
+  )
+
+# generate 10 random samples and put output
+# in the designated path
+g.generate(samples = 10, path = "~/output/path/")
+```
+
+## References
+
+J. Sueiras, et al.: "Using Synthetic Character Database for Training Deep Learning
+Models Applied to Offline Handwritten Character Recognition", Proc. Intl. Conf.Intelligent
+Systems Design and Applications (ISDA), Springer, 2016.
