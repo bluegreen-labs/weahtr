@@ -55,8 +55,10 @@ conda env create -f environment.yml
 
 ### Loading the package locally
 
-For now no `pip` based install is supported you can install the package by working
-in editor mode (if under development), or through a linked `pip` install.
+For now no `pip` based install is supported. You can install the package by working
+in editor mode (if under development), or through a linked `pip` install. This works
+both in a Docker or in normal install, given that requirement are met. Editting mode
+also allows you to dynamically change the code.
 
 For editor mode use:
 
@@ -69,6 +71,7 @@ For a static local install use:
 pip install mypackage --no-index --find-links /path/to/pkg
 ```
 
+> [!NOTE]
 > When using a Docker image you will have to install the package in every new session.
 
 ## Workflow
@@ -84,16 +87,16 @@ The workflow consists of four steps:
 ```python
 # import libraries
 import glob
-import weahtr
+from weahtr.template import *
 
 # list files to process
-images =  glob.glob("/data/demo_input/format_1/*.jpg", recursive=True)
+images =  glob.glob("./demo_input/format_1/*.jpg", recursive=True)
 
 # initiate the setup
 t = template.template(
   images = images,
-  template = "/data/demo_input/format_1.jpg",
-  config = "/data/demo_input/format_config.yml"
+  template = "./demo_input/format_1.jpg",
+  config = "./demo_input/format_config.yml"
   )
 
 # match all templates, write homography data to file
@@ -107,7 +110,7 @@ Details will be stored in the homography directory of the output folder
 # using the tesseract setup
 t.label(method = "tesseract")
 ```
-7. Screen the logs and visual output for [quality control]()
+7. Screen the logs and visual output for quality control
 
 ## Number generator
 
