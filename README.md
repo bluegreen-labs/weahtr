@@ -3,7 +3,7 @@
 A workflow for handwritten text recognition (HTR) of weather records. The presented workflow provides a set of end to end instructions to follow in order to automatically transcribe your weather records using machine learning.
 
 > [!CAUTION]
-> This python package is a consolidation of previously dispersed script components written across years.
+> This python package is a consolidation of previously dispersed proof-of-concept script components written across years.
 > Although consolidated, gaps in documentation and usability considerations still exist. For example, paths
 > are not always validated and arguments might not have defaults.
 
