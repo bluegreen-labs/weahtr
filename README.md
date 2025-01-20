@@ -5,7 +5,7 @@ A workflow for handwritten text recognition (HTR) of weather records. The presen
 > [!CAUTION]
 > This python package is a consolidation of previously dispersed script components written across years.
 > Although consolidated, gaps in documentation and usability considerations still exist. For example, paths
-> are note always validated and arguments might not have defaults.
+> are not always validated and arguments might not have defaults.
 
 ## Introduction
 
