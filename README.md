@@ -21,7 +21,7 @@ Furthermore, the law of large numbers makes small error rates affect a significa
 
 ### Transcription models
 
-Transcription models can be flexibly deployed, where the default model is trained upon thousands of handwritten table entries from the COBECORE project where [easyOCR](https://pypi.org/project/easyocr/) is used for conventional type-written text.
+Transcription models can be flexibly deployed, where the default model is trained upon thousands of handwritten table entries from the COBECORE project where either the Transformer based [TrOCR model](https://github.com/NielsRogge/Transformers-Tutorials/blob/master/TrOCR/Fine_tune_TrOCR_on_IAM_Handwriting_Database_using_native_PyTorch.ipynb) or [Tesseract](https://github.com/tesseract-ocr/tesseract) is used.
 
 ## Installation & Use
 
