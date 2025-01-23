@@ -14,7 +14,7 @@
 # profile and will affect the
 # naming convention on output
 # generated (for reproducibility)
-profile_name: "format_1_month"
+profile_name: "format_1_outline"
 
 # where to output analysis data
 # this includes cropping and
@@ -23,7 +23,7 @@ profile_name: "format_1_month"
 # and log files (failed attempts)
 # this directory will be created if
 # it does not exist
-output: "/docker_data_dir/output/"
+output: "/data/output/"
 
 #--- template matching settings ---
 

@@ -26,12 +26,47 @@ class generator:
     self.values = values
     
     # TODO validate paths!!
+    
+    #---- Public functions
+  def generate(self, samples = 1, path = "."):
+    
+    # keep everything internal
+    self.output_path = path
+    
+    # create empty lists
+    text = []
+    filename = []
+    
+    # check if paths exists, if not error
+    # if path exists create sub-folder images
+    # to store the images
+    if not os.path.exists(os.path.join(path, 'images')):
+      os.makedirs(os.path.join(path, 'images'), exist_ok=True)
+  
+    # cover the range of random samples
+    # write to lists
+    for i in range(samples):
+      d, v, f = self.__digits()
+      
+      # add data to list
+      text = np.append(text, v)
+      filename = np.append(filename, f)
+
+    # convert to dataframe and save in image directory
+    df = pd.DataFrame(
+      np.column_stack(
+        [filename, text]), 
+        columns=['file_name', 'text']
+      )
+    
+    df.to_csv(
+      os.path.join(path, 'labels.csv'),
+      index = False
+    )
+
   
   #---- Private functions
-  def __digits(
-    self,
-    path
-    ):
+  def __digits(self):
     
     # load the UNIPEN decimals/sign images
     comma = glob.glob(os.path.join(self.data_path, "UNIPEN/comma/*.png"))
@@ -176,7 +211,7 @@ class generator:
     value = ''.join(digits)
     
     # check conversion of formats
-    filename = os.path.join(path, "images", value + '.png')
+    filename = os.path.join(self.output_path, "images", value + '.png')
     cv2.imwrite(filename, dst)
     
     # join digits
@@ -186,39 +221,3 @@ class generator:
     # both in concatenated and full form
     return digits, value, filename
   
-  #---- Public functions
-  
-  def generate(self, samples = 1, path = "."):
-    
-    # create empty lists
-    text = []
-    filename = []
-    
-    # check if paths exists, if not error
-    # if path exists create sub-folder images
-    # to store the images
-    if not os.path.exists(os.path.join(path, 'images')):
-      os.makedirs(os.path.join(path, 'images'), exist_ok=True)
-  
-    # cover the range of random samples
-    # write to lists
-    for i in range(samples):
-      d, v, f = self.__digits(
-        path = path
-      )
-      
-      # add data to list
-      text = np.append(text, v)
-      filename = np.append(filename, f)
-
-    # convert to dataframe and save in image directory
-    df = pd.DataFrame(
-      np.column_stack(
-        [filename, text]), 
-        columns=['file_name', 'text']
-      )
-    
-    df.to_csv(
-      os.path.join(path, 'labels.csv'),
-      index = False
-    )
