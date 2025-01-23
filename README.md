@@ -148,6 +148,48 @@ g = generator(
 g.generate(samples = 10, path = "~/output/path/")
 ```
 
+## Table layout mapping methods
+
+The package includes three methods to align the source image with
+a known template or guides, there is a `table`, `fft` and the `features`
+method. 
+
+### Table method
+
+The `table` recognition method is based on polygon dilation and erosion, to
+calculate the four corners of the largest table in an image. This assumes
+that the tables are well defined (bounded by a grid). In addition, one needs
+a JSON guides file covering the full extent of the table. This therefore also
+requires you to set the rows to skip in the processing of the table content.
+
+Generally, this method is fast but can be unreliable on very noise data. It
+also requires the tables to be relatively well constrained.
+
+### Fast Fourier Transform (FFT) method
+
+The `fft` method uses translation and rotation invariant mapping within the 
+frequency domain to align two images, the source image and an empty template
+of a table you want to reference.
+
+This method is relatively slow, but rather robust to noisy input. In short,
+reference templates which are approximately the same as the source (content)
+you want to reference will work to some extent.
+
+In this case a guides file with the location of cells in the table is only
+required for the transcription processing of the cell content, not the 
+table matching.
+
+### Feature matching method
+
+The `features` method uses the correspondence between key image features (i.e
+recognizable patterns in the image) to align both images correctly. This method
+is computationally expensive but if it works well also the most accurate way
+of referencing data.
+
+As with the `fft` method, a guides file with the location of cells in the table is only
+required for the transcription processing of the cell content, not the 
+table matching.
+
 ## References
 
 J. Sueiras, et al.: "Using Synthetic Character Database for Training Deep Learning
