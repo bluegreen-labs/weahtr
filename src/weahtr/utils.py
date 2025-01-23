@@ -265,7 +265,7 @@ def replace_matte(image):
   # homography calculation based upon the approximate
   # location of the bounding box of the sheet and
   # the original dimensions
-  h = cv2.getPerspectiveTransform(corners_new, pts2)
+  h = cv2.getPerspectiveTransform(corners, pts2)
   
   # crop using cropping homography
   im_crop = cv2.warpPerspective(image, h, None)
