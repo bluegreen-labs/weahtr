@@ -67,10 +67,11 @@ class template():
       # path - this should be fixed in the docker image
       # from the get go by pulling models from elsewhere
       # (a model generation workflow)
-      shutil.copyfile(
-        model_path,
-        "/usr/share/tesseract-ocr/5/tessdata/"
-      )
+      print("ON DOCKER")
+      # shutil.copyfile(
+      #   model_path,
+      #   "/usr/share/tesseract-ocr/5/tessdata/"
+      # )
     else:
       print("Not in a Docker image, tesseract runs will fail...")
     
@@ -216,6 +217,51 @@ class template():
     
     return h
 
+  def __table(self, image, guides):
+    
+    # replace matte with average of the image
+    # content to properly binarize
+    _ , image , _ = replace_matte(image)
+    
+    # binarize
+    image = binarize(
+      image,
+      self.config['threshold']['window_size'],
+      self.config['threshold']['C']
+    )
+    
+    # invert and dilate
+    image = cv2.bitwise_not(image)
+    image = cv2.dilate(
+        image,
+        None,
+        iterations = 5
+    )
+
+    # find maximal contours by area
+    pts1 = find_contours(image)
+    pts1 = np.float32(pts1)
+    
+    # load template guides
+    cells = load_guides(guides)
+    
+    xmin = min(cells['x_min'])
+    xmax = max(cells['x_max'])
+    ymin = min(cells['y_min'])
+    ymax = max(cells['y_max'])
+    
+    # destination of transform from template
+    pts2 = np.float32([
+        [xmin, ymin],
+        [xmax, ymin],
+        [xmax, ymax],
+        [xmin, ymax]
+        ])
+        
+    # calculate homography (transformation matrix)
+    h = cv2.getPerspectiveTransform(pts1, pts2)
+    return h
+    
   def __features(self, image, template):
     
     # set scale ratio
@@ -453,10 +499,26 @@ class template():
         print("No method set in template or function call.")
         raise
     
+    # set guides if not inherited for the table method
+    # requires referencing of the largest table outline
+    if self.method == "table":
+      if not hasattr(self, 'guides'):
+        # set method as state variable
+        try:
+          self.guides = kwargs['guides']
+        except:
+          print("No guides set in template or function call.")
+          raise
+    
     # read template
     template = cv2.imread(self.template, cv2.IMREAD_GRAYSCALE)
+    
+    if self.method == "table":
+      message = "Finding table    "
+    else:
+      message = "Matching template"
   
-    for image in tqdm(self.images, desc="Matching template"):
+    for image in tqdm(self.images, desc = message):
       
       # extract basename image
       basename = os.path.basename(image)
@@ -470,8 +532,10 @@ class template():
       try:
         if self.method == "features":
           h = self.__features(im, template)
-        else:
+        elif self.method == "fft":
           h = self.__fft(im, template)
+        else:
+          h  = self.__table(im, self.guides)
       except:
         # always log state internally
         self.log.append(image)
@@ -548,9 +612,6 @@ class template():
       except:
         print("Failed !")
         exit()
-    
-    # first four
-    self.homography = dict(list(self.homography.items())[:4])
     
     # preload model, forwarded to labeller
     # shitty setup, should be fixed - read up on class

@@ -209,9 +209,15 @@ def preview_labels(im, df, path):
 def highpass(img, sigma):
     return img - cv2.GaussianBlur(img, (0,0), sigma) + 127
 
-# static variables and private
-# internal functions
-def crop_matte(image):
+# replaces matte cutting out the central part with a page
+# or replace the cut oute matte with the mean of the
+# content of the page - to retain original image dimensions
+# and thereby allowing for easier homography based
+# transformations
+def replace_matte(image):
+  
+  # retain original copy
+  image_orig = image
   
   # black border to make it work
   # on white matte images
@@ -245,17 +251,75 @@ def crop_matte(image):
     iterations = 5
   )
   
+  # find corners of the largest rectangle
+  corners = find_contours(edged)
+  
+  # original coordinate references
+  pts2 = np.float32(
+    [[0,0],
+    [image.shape[1],0],
+    [image.shape[1],image.shape[0]],
+    [0,image.shape[0]]]
+  )
+  
+  # homography calculation based upon the approximate
+  # location of the bounding box of the sheet and
+  # the original dimensions
+  h = cv2.getPerspectiveTransform(corners_new, pts2)
+  
+  # crop using cropping homography
+  im_crop = cv2.warpPerspective(image, h, None)
+  
+  # ----- create new matte ----
+  # reshuffle coordinates to a set
+  # of points to use in the coordinate
+  # transform mapping
+  x = corners[:,0]
+  y = corners[:,1]
+  w = int(max(x) - min(x))
+  h = int(max(y) - min(y))
+  x = int(min(x))
+  y = int(min(y))
+  
+  # create empty image
+  colours = image_orig[y-500:(y-500+h),x-500:(x-500+w)].mean(axis=0).mean(axis=0)
+  
+  # create RGB layers with the mean of the inset image (table)
+  r = np.full((image_orig.shape[0], image_orig.shape[1]), int(colours[0]))
+  g = np.full((image_orig.shape[0], image_orig.shape[1]), int(colours[1]))
+  b = np.full((image_orig.shape[0], image_orig.shape[1]), int(colours[2]))
+  
+  # create an RGB stack
+  matte = np.stack((r, g, b), axis = 2).astype(np.uint8)
+  
+  # overwrite the central part with the original image
+  matte[y-500:(y-500+h),x-500:(x-500+w)] = image_orig[y-500:(y-500+h),x-500:(x-500+w)]
+  
+  # return the destination results
+  return (im_crop, matte, h)
+
+# get most common element from a list of strings
+def most_common(lst):
+    data = Counter(lst)
+    return data.most_common(1)[0][0]
+
+
+def find_contours(image):
   # from this image which is all edges extract
   # the contours of this center area
   (contours, _) = cv2.findContours(
-    edged,
+    image,
     cv2.RETR_LIST,
     cv2.CHAIN_APPROX_NONE
   )
   
   # order these by length and use the longest one
   # to create a bounding rectangle / polygon
-  contours = sorted(contours, key=cv2.contourArea, reverse=True)
+  contours = sorted(
+    contours,
+    key = cv2.contourArea,
+    reverse = True
+  )
   
   # get approximate contour
   for c in contours:
@@ -283,37 +347,4 @@ def crop_matte(image):
   corners_new[1] = corners[np.argmin(diff)]
   corners_new[3] = corners[np.argmax(diff)]
   
-  # reshuffle coordinates to a set
-  # of points to use in the coordinate
-  # transform mapping
-  x = corners_new[:,0]
-  y = corners_new[:,1]
-  w = int(max(x) - min(x))
-  h = int(max(y) - min(y))
-  x = int(min(x))
-  y = int(min(y))
-
-  # original coordinate references
-  pts2 = np.float32(
-    [[0,0],
-    [image.shape[1],0],
-    [image.shape[1],image.shape[0]],
-    [0,image.shape[0]]]
-  )
-  
-  # homography calculation based upon the approximate
-  # location of the bounding box of the sheet and
-  # the original dimensions
-  h = cv2.getPerspectiveTransform(corners_new, pts2)
-  
-  # crop using cropping homography
-  im = cv2.warpPerspective(image, h, None)
-  
-  # return the destination results
-  return (im, h)
-
-# get most common element from a list of strings
-def most_common(lst):
-    data = Counter(lst)
-    return data.most_common(1)[0][0]
-
+  return corners_new
