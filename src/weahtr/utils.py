@@ -348,3 +348,41 @@ def find_contours(image):
   corners_new[3] = corners[np.argmax(diff)]
   
   return corners_new
+
+# remove vertical and horizontal
+# lines by replacing it with the 
+# average colour
+# NOTE: Ugly clean up
+def remove_lines(image):
+  image_bin = binarize(image)
+  image_bin = cv2.bitwise_not(image_bin)
+  
+  # hough lines
+  linesP = cv2.HoughLinesP(image_bin, 1, np.pi/180, 50, None, 50, 100)
+  
+  # duplicate
+  cdst = image
+  
+  # mean colours of image
+  colours = image.mean(axis=0).mean(axis=0)
+  colours = (int(colours[0]),int(colours[1]),int(colours[2]))
+  
+  # Draw the lines
+  if linesP is not None:
+    for i in range(0, len(linesP)):
+      l = linesP[i][0]
+      
+      angle = np.arctan2(l[3] - l[1], l[2] - l[0]) * 180.0 / np.pi
+      angle = abs(angle)
+      
+      if angle >= 88 and angle <= 92:
+        cv2.line(cdst, (l[0], l[1]), (l[2], l[3]), colours, 3, cv2.LINE_AA)
+        
+      if angle >= 0 and angle <= 2:
+        cv2.line(cdst, (l[0], l[1]), (l[2], l[3]), colours, 3, cv2.LINE_AA)
+      
+      if angle >= 178 and angle <= 182:
+        cv2.line(cdst, (l[0], l[1]), (l[2], l[3]), colours, 3, cv2.LINE_AA)
+      
+  return cdst
+
