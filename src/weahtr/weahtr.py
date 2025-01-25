@@ -22,12 +22,10 @@ class template():
     
     # validate inputs
     if not os.path.exists(template):
-      print("Template image does not exist, check path ...")
-      quit()
+      raise ValueError("Template image does not exist, check path ...")
       
     if not os.path.exists(config):
-      print("Config file does not exist, check path ...")
-      quit()
+      raise ValueError("Config file does not exist, check path ...")
     
     # some feedback
     print("\n")
@@ -40,8 +38,7 @@ class template():
         self.config = yaml.safe_load(file)
         self.config_file = config
       except:
-        print("No yaml config file, or badly formatted YML file (check all quotes) ...")
-        quit()
+        raise ValueError("No yaml config file, or badly formatted YML file (check all quotes) ...")
     
     # split out output directory
     out_dir = self.config['output']
@@ -588,8 +585,7 @@ class template():
     
     # Validating all inputs
     if not os.path.exists(self.guides):
-      print("Template guides file does not exist, check path ...")
-      quit()
+      raise ValueError("Template guides file does not exist, check path ...")
     
     # read template
     template = cv2.imread(self.template, cv2.IMREAD_GRAYSCALE)
@@ -597,21 +593,23 @@ class template():
     # load template guides
     cells = load_guides(self.guides)
     
+    # remove any cells that need to be skipped, such as rows to skip
+    # and columns to process
+    cells = cells[~cells["row"].isin(self.config['skip_rows'])]
+    cells = cells[cells["col"].isin(self.config['select_cols'])]
+    
     # check if file exists, save homography file
     h_file = os.path.join(
       self.homography_path, self.config['profile_name'] + '_homography.json'
     )
     
     # Read JSON homography file
-    if len(self.homography) == 0:
-      print("Loading homography file from disk:")
+    if hasattr(self, 'homography'):
       try:
         with open(h_file, "r") as file:
           self.homography = json.load(file)
-        print("Success !")
       except:
-        print("Failed !")
-        exit()
+        raise ValueError("Failed to load homography file, check path!")
     
     # preload model, forwarded to labeller
     # shitty setup, should be fixed - read up on class
@@ -627,9 +625,10 @@ class template():
       pathname, _ = os.path.splitext(basename)
       
       # transform the image using the provided homography
+      # to fit the template and derived guides
       matched_image = self.__transform(image, np.array(h))
       
-      # only provide a preview when not doing slices
+      # only provide a preview when not processing slices (cells)
       if preview and not slices:
         preview_labels(
           matched_image,

@@ -2,7 +2,6 @@ import os, json
 import numpy as np
 import pandas as pd
 import cv2
-import math
 import scipy.ndimage.interpolation as ndii
 from collections import Counter
 
@@ -348,3 +347,126 @@ def find_contours(image):
   corners_new[3] = corners[np.argmax(diff)]
   
   return corners_new
+
+# remove vertical and horizontal
+# lines by replacing it with the 
+# average colour
+# NOTE: Ugly clean up
+def remove_lines(image):
+  image_bin = binarize(image)
+  image_bin = cv2.bitwise_not(image_bin)
+  
+  # hough lines
+  linesP = cv2.HoughLinesP(image_bin, 1, np.pi/180, 50, None, 50, 100)
+  
+  # mean colours of image
+  colours = image.mean(axis=0).mean(axis=0)
+  colours = (int(colours[0]),int(colours[1]),int(colours[2]))
+  
+  rows = []
+  cols = []
+  
+  # Draw the lines
+  if linesP is not None:
+    for i in range(0, len(linesP)):
+      l = linesP[i][0]
+      
+      angle = abs(np.arctan2(l[3] - l[1], l[2] - l[0]) * 180.0 / np.pi)
+      
+      if angle >= 88 and angle <= 92:
+        cv2.line(image, (l[0], l[1]), (l[2], l[3]), colours, 3, cv2.LINE_AA)
+        
+      if angle >= 0 and angle <= 2:
+        cv2.line(image, (l[0], l[1]), (l[2], l[3]), colours, 3, cv2.LINE_AA)
+      
+      if angle >= 178 and angle <= 182:
+        cv2.line(image, (l[0], l[1]), (l[2], l[3]), colours, 3, cv2.LINE_AA)
+      
+  return image
+
+# subsets cell to the largerst outline
+# marked by column or row lines, if no
+# bounding box is available the original
+# image is returned
+
+def subset_cell(image, distance = 10):
+  image_bin = binarize(image)
+  image_bin = cv2.bitwise_not(image_bin)
+  
+  # grab dimensions
+  height, width = image_bin.shape
+  min_dim = min(height, width)
+  
+  # Hough line detection
+  linesP = cv2.HoughLinesP(
+    image_bin, 1,
+    np.pi/180, 50, None,
+    min_dim * 0.5,
+    min_dim * 0.2
+  )
+  
+  # more complex merging of lines is possible but simple logic will
+  # do in this case, more reading on this topic can be found here:
+  # https://stackoverflow.com/questions/45531074/how-to-merge-lines-after-houghlinesp
+  
+  # filter the detected lines on their angle
+  # use a two degree tolerance
+  if linesP is not None:
+    
+    # empty placeholders
+    rows = []
+    cols = []
+    
+    for i in range(0, len(linesP)):
+      l = linesP[i][0]
+      
+      angle = abs(np.arctan2(l[3] - l[1], l[2] - l[0]) * 180.0 / np.pi)
+      
+      if angle >= 88 and angle <= 92:
+        cols.append(int(np.average([l[0], l[2]])))
+      if angle >= 0 and angle <= 2:
+        rows.append(int(np.average([l[1], l[3]])))
+      if angle >= 178 and angle <= 182:
+        rows.append(int(np.average([l[1], l[3]])))
+  
+    # find the extremes in the detected
+    # rows and columns
+    min_row = min(rows)
+    max_row = max(rows)
+    min_col = min(cols)
+    max_col = max(cols)
+    diff_row = abs(min_row - max_row)
+    diff_col = abs(min_col - max_col)
+    
+    # defaults (whole image)
+    if diff_row < distance:
+      # decision logic
+      if max_row < height * 0.66:
+        tmp_max_row = height
+        tmp_min_row = max_row
+        
+      if min_row > height * 0.66:
+        tmp_max_row = min_row
+        tmp_min_row = 0
+    else:
+      tmp_max_row = max_row
+      tmp_min_row = min_row
+    
+    if diff_col < distance:
+      if max_col < width * 0.33:
+        tmp_max_col = width
+        tmp_min_col = max_col
+    
+      if min_col > width * 0.66:
+        tmp_max_col = min_col
+        tmp_min_col = 0
+    else:
+      tmp_max_col = max_col
+      tmp_min_col = min_col
+  
+    image = image[
+      tmp_min_row:tmp_max_row,
+      tmp_min_col:tmp_max_col
+    ]
+  
+  return image
