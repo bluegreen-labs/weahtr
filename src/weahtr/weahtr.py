@@ -593,13 +593,18 @@ class template():
     # load template guides
     cells = load_guides(self.guides)
     
+    # remove any cells that need to be skipped, such as rows to skip
+    # and columns to process
+    cells = cells[~cells["row"].isin(self.config['skip_rows'])]
+    cells = cells[cells["col"].isin(self.config['select_cols'])]
+    
     # check if file exists, save homography file
     h_file = os.path.join(
       self.homography_path, self.config['profile_name'] + '_homography.json'
     )
     
     # Read JSON homography file
-    if len(self.homography) == 0:
+    if hasattr(self, 'homography'):
       try:
         with open(h_file, "r") as file:
           self.homography = json.load(file)
@@ -620,9 +625,10 @@ class template():
       pathname, _ = os.path.splitext(basename)
       
       # transform the image using the provided homography
+      # to fit the template and derived guides
       matched_image = self.__transform(image, np.array(h))
       
-      # only provide a preview when not doing slices
+      # only provide a preview when not processing slices (cells)
       if preview and not slices:
         preview_labels(
           matched_image,
