@@ -367,13 +367,15 @@ def remove_lines(image):
   colours = image.mean(axis=0).mean(axis=0)
   colours = (int(colours[0]),int(colours[1]),int(colours[2]))
   
+  rows = []
+  cols = []
+  
   # Draw the lines
   if linesP is not None:
     for i in range(0, len(linesP)):
       l = linesP[i][0]
       
-      angle = np.arctan2(l[3] - l[1], l[2] - l[0]) * 180.0 / np.pi
-      angle = abs(angle)
+      angle = abs(np.arctan2(l[3] - l[1], l[2] - l[0]) * 180.0 / np.pi)
       
       if angle >= 88 and angle <= 92:
         cv2.line(cdst, (l[0], l[1]), (l[2], l[3]), colours, 3, cv2.LINE_AA)
@@ -385,4 +387,47 @@ def remove_lines(image):
         cv2.line(cdst, (l[0], l[1]), (l[2], l[3]), colours, 3, cv2.LINE_AA)
       
   return cdst
+
+def find_grid(image):
+  image_bin = binarize(image)
+  image_bin = cv2.bitwise_not(image_bin)
+  
+  # grab dimensions
+  height, width = image_bin.shape
+  min_dim = min(height, width)
+  
+  # Hough line detection
+  linesP = cv2.HoughLinesP(
+    image_bin, 1,
+    np.pi/180, 50, None,
+    min_dim * 0.5,
+    min_dim * 0.2
+  )
+  
+  # empty placeholders
+  rows = []
+  cols = []
+  
+  # filter the detected lines on their angle
+  # use a two degree tolerance
+  if linesP is not None:
+    for i in range(0, len(linesP)):
+      l = linesP[i][0]
+      
+      angle = abs(np.arctan2(l[3] - l[1], l[2] - l[0]) * 180.0 / np.pi)
+      
+      if angle >= 88 and angle <= 92:
+        cols.append(int(l[0]))
+        cols.append(int(l[2]))
+        
+      if angle >= 0 and angle <= 2:
+        rows.append(int(l[1]))
+        rows.append(int(l[3]))
+      
+      if angle >= 178 and angle <= 182:
+        rows.append(int(l[1]))
+        rows.append(int(l[3]))
+      
+  return (rows, cols)
+
 
