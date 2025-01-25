@@ -66,8 +66,7 @@ class model:
       try:
         self.config = yaml.safe_load(file)
       except:
-        print("No yaml config file, or badly formatted YML file (check all quotes) ...")
-        quit()
+        raise ValueError("No yaml config file, or badly formatted YML file (check all quotes) ...")
     
     print("preloading model")
     
