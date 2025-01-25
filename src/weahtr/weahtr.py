@@ -22,12 +22,10 @@ class template():
     
     # validate inputs
     if not os.path.exists(template):
-      print("Template image does not exist, check path ...")
-      quit()
+      raise ValueError("Template image does not exist, check path ...")
       
     if not os.path.exists(config):
-      print("Config file does not exist, check path ...")
-      quit()
+      raise ValueError("Config file does not exist, check path ...")
     
     # some feedback
     print("\n")
@@ -40,8 +38,7 @@ class template():
         self.config = yaml.safe_load(file)
         self.config_file = config
       except:
-        print("No yaml config file, or badly formatted YML file (check all quotes) ...")
-        quit()
+        raise ValueError("No yaml config file, or badly formatted YML file (check all quotes) ...")
     
     # split out output directory
     out_dir = self.config['output']
@@ -588,8 +585,7 @@ class template():
     
     # Validating all inputs
     if not os.path.exists(self.guides):
-      print("Template guides file does not exist, check path ...")
-      quit()
+      raise ValueError("Template guides file does not exist, check path ...")
     
     # read template
     template = cv2.imread(self.template, cv2.IMREAD_GRAYSCALE)
@@ -604,14 +600,11 @@ class template():
     
     # Read JSON homography file
     if len(self.homography) == 0:
-      print("Loading homography file from disk:")
       try:
         with open(h_file, "r") as file:
           self.homography = json.load(file)
-        print("Success !")
       except:
-        print("Failed !")
-        exit()
+        raise ValueError("Failed to load homography file, check path!")
     
     # preload model, forwarded to labeller
     # shitty setup, should be fixed - read up on class
