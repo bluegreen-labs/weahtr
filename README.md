@@ -6,10 +6,12 @@ to automatically transcribe your weather records using machine learning.
 
 > [!CAUTION]
 > This python package is a consolidation of previously dispersed proof-of-concept
-> script components written across years.
-> Although consolidated, gaps in documentation and usability considerations still
-> exist. For example, paths are not always validated and arguments might not have
-> defaults.
+> script components written across years. Although consolidated, gaps in 
+> documentation and usability considerations still exist. For example, paths 
+> are not always validated and arguments might not have defaults.
+>
+> Read the below documentation carefully before proceeding. The software is
+> provided AS IS and no responsibility is taken in the event of data loss.
 
 ## Introduction
 
@@ -23,13 +25,14 @@ weather records.
 
 ### Template matching
 
-Although layout detection presents itself as feasible part of this workflow a
-template matching approach is given priority. Layout matching with a good
-accuracy (90%) on vast numbers of records could still corrupt large amounts of
-data which would be need to be filtered (detected) post-hoc, due to its
-unsupervised nature.
+Although machine learning (ML) layout detection presents itself as feasible part
+of a transcription workflow a template matching approach is given priority.
+Layout matching with a good accuracy (90%) on vast numbers of records could still
+corrupt large amounts of data which would be need to be filtered (detected)
+post-hoc, due to its unsupervised nature.
 
-The template matching methods requires more up-front work, but flags poor template matches earlier in the processing chain making it easier to detect
+The template matching methods requires more up-front work, but flags poor 
+template matches earlier in the processing chain making it easier to detect
 errors and screen for quality. Faulty layout detection can be partial, where only
 a part of the table is found, making absolute classifications of faulty or
 correct data hard.
@@ -37,10 +40,17 @@ correct data hard.
 Furthermore, the law of large numbers makes small error rates affect a
 significant amount of data. Partial matches and shifts in both columns or rows of
 a table also propagate throughout the chronological order of the remaining data.
+Unlike text data, where contextual clues can allow for meaningful re-orderning
+of sentences the nature of numeric data is such that the encoding of the position
+within a table must be absolute. Therefore, a preference is given to a
+semi-supervised template matching and table detection workflow.
 
 ### Transcription models
 
-Transcription models can be flexibly deployed, where the default model is trained upon thousands of handwritten table entries from the COBECORE project where either the Transformer based [TrOCR model](https://github.com/NielsRogge/Transformers-Tutorials/blob/master/TrOCR/Fine_tune_TrOCR_on_IAM_Handwriting_Database_using_native_PyTorch.ipynb) or [Tesseract](https://github.com/tesseract-ocr/tesseract) is used.
+Transcription models can be flexibly deployed, where the default model is trained
+upon thousands of handwritten table entries from the COBECORE project where either
+the Transformer based [TrOCR model](https://github.com/NielsRogge/Transformers-Tutorials/blob/master/TrOCR/Fine_tune_TrOCR_on_IAM_Handwriting_Database_using_native_PyTorch.ipynb) or
+[Tesseract](https://github.com/tesseract-ocr/tesseract) is used.
 
 ## Installation & Use
 
@@ -274,8 +284,8 @@ recognizable patterns in the image) to align both images correctly. This method
 is computationally expensive but if it works well also the most accurate way
 of referencing data.
 
-As with the `fft` method, a guides file with the location of cells in the table is only
-required for the transcription processing of the cell content, not the 
+As with the `fft` method, a guides file with the location of cells in the table
+is only required for the transcription processing of the cell content, not the 
 table matching.
 
 ## Demo scripts
@@ -297,5 +307,5 @@ type and quality of the image/table provided.
 ## References
 
 J. Sueiras, et al.: "Using Synthetic Character Database for Training Deep Learning
-Models Applied to Offline Handwritten Character Recognition", Proc. Intl. Conf.Intelligent
-Systems Design and Applications (ISDA), Springer, 2016.
+Models Applied to Offline Handwritten Character Recognition", 
+Proc. Intl. Conf.Intelligent Systems Design and Applications (ISDA), Springer, 2016.
