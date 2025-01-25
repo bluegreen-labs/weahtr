@@ -376,6 +376,20 @@ class template():
         
         # crop image to size
         crop_im = im[y_min:y_max, x_min:x_max]
+        
+        try:
+          crop_im = subset_cell(crop_im)
+        except:
+          #logging
+          continue
+        
+        try:
+          crop_im = remove_lines(crop_im)
+        except:
+          #logging
+          continue
+        
+        # convert colour channels
         crop_im = cv2.cvtColor(crop_im, cv2.COLOR_BGR2RGB)
         
         if slices:
