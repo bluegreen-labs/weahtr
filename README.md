@@ -278,6 +278,22 @@ As with the `fft` method, a guides file with the location of cells in the table 
 required for the transcription processing of the cell content, not the 
 table matching.
 
+## Demo scripts
+
+In the `analysis` folder of the project you find a number of demonstration
+scripts which should work within the provided Docker environment. These scripts
+allow you to experiment with the workflow, so you can familiarize yourself with
+the process.
+
+These scripts rely on small demo datasets included in the github repository, and
+are real life examples of climate data recovery efforts. They include three
+data formats from data recovery efforts within the COBECORE (format 1 and 6) and
+VUB Hydrology department (Yangambi). The included tables are both in portrait and
+landscape mode. For each table format a configuration file (*.yml) and empty
+template is provided. Experimenting with different table detection / registration
+methods will show that these methods perform better or worse depending on the
+type and quality of the image/table provided.
+
 ## References
 
 J. Sueiras, et al.: "Using Synthetic Character Database for Training Deep Learning
