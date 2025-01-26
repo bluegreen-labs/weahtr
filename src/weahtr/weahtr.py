@@ -366,31 +366,36 @@ class template():
           cell['y_max'] = int(im.shape[0])
         
         # apply padding factors
-        x_pad = int((cell['x_max'] - cell['x_min']) * self.config['x_pad'])
-        y_pad = int((cell['y_max'] - cell['y_min']) * self.config['y_pad'])
+        pad_left = int((cell['x_max'] - cell['x_min']) * self.config['pad_left'])
+        pad_right = int((cell['x_max'] - cell['x_min']) * self.config['pad_right'])
         
-        x_min = cell['x_min'] - x_pad
-        x_max = cell['x_max'] + x_pad
-        y_min = cell['y_min'] - y_pad
-        y_max = cell['y_max'] + y_pad
+        pad_top = int((cell['y_max'] - cell['y_min']) * self.config['pad_top'])
+        pad_bottom = int((cell['y_max'] - cell['y_min']) * self.config['pad_bottom'])
+        
+        x_min = cell['x_min'] - pad_left
+        x_max = cell['x_max'] + pad_right
+        y_min = cell['y_min'] - pad_top
+        y_max = cell['y_max'] + pad_bottom
         
         # crop image to size
         crop_im = im[y_min:y_max, x_min:x_max]
         
-        try:
-          crop_im = subset_cell(crop_im)
-        except:
-          #logging
-          continue
+        # sensitive to parameters, remove for now
+        # try:
+        #   crop_im = subset_cell(crop_im)
+        # except:
+        #   #logging
+        #   continue
         
-        try:
-          crop_im = remove_lines(crop_im)
-        except:
-          #logging
-          continue
+        if self.config['remove_lines']:
+          try:
+            crop_im = remove_lines(crop_im)
+          except:
+            #logging
+            continue
         
         # convert colour channels
-        crop_im = cv2.cvtColor(crop_im, cv2.COLOR_BGR2RGB)
+        cv2.imwrite("demo.png", crop_im)
         
         if slices:
           # write data slices to file
@@ -482,8 +487,7 @@ class template():
       
       # write data to disk
       df.to_csv(filename, sep=',', index = False)
-    
-    return df
+      return df
 
   #--- public functions ----
   def save_log(self, path):
@@ -651,12 +655,11 @@ class template():
           )
       else:
         # label the cells in the table / sheet / header
-        if self.model == "trocr":
-          labels = self.__label_cells(
+        labels = self.__label_cells(
             matched_image,
             cells,
             pathname,
             slices,
             m = m # forward the model
-          )
+        )
       
