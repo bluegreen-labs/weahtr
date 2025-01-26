@@ -54,23 +54,17 @@ class template():
     
     # where the model should live
     model_path = os.path.join(
-         self.config['tesseract']['path'],
+         self.config['tesseract']['src_path'],
          self.config['tesseract']['model']
     )
     
-    # check if in docker, otherwise skip
-    if os.path.exists('/.dockerenv'):
-      # QUICK FIX: copy model data to the correct docker
-      # path - this should be fixed in the docker image
-      # from the get go by pulling models from elsewhere
-      # (a model generation workflow)
-      print("ON DOCKER")
-      # shutil.copyfile(
-      #   model_path,
-      #   "/usr/share/tesseract-ocr/5/tessdata/"
-      # )
-    else:
-      print("Not in a Docker image, tesseract runs will fail...")
+    try:
+      shutil.copyfile(
+         model_path,
+         self.config['tesseract']['dst_path']
+      )
+    except:
+      print("Tesseract model or destination path does not exist!")
     
     # check and create output directories
     if not os.path.exists(os.path.join(out_dir, sub_dir, 'homography')):
