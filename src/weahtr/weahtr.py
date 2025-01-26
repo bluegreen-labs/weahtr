@@ -240,8 +240,9 @@ class template():
     pts1 = np.float32(pts1)
     
     # load template guides
+    # NOTE: move outside function for speed (pre-load)
+    # only pass pts2 variable
     cells = load_guides(guides)
-    
     xmin = min(cells['x_min'])
     xmax = max(cells['x_max'])
     ymin = min(cells['y_min'])
@@ -257,6 +258,7 @@ class template():
         
     # calculate homography (transformation matrix)
     h = cv2.getPerspectiveTransform(pts1, pts2)
+    
     return h
     
   def __features(self, image, template):
