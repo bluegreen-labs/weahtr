@@ -80,7 +80,6 @@ class model:
         train = True
         encoder_model = self.config['trocr']['model']
       
-        
       self.trocr_model, self.trocr_processor = model_loader.load_trocr(
         processor_model = self.config['trocr']['processor'],
         encoder_model = encoder_model,
