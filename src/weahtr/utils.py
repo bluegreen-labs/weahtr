@@ -327,7 +327,8 @@ def find_contours(image):
       # 0.02 is the epsilon factor which determines
       # the reduction in complexity
       # which stops when the polygon has only 4 points
-      corners = cv2.approxPolyDP(c, 0.02 * p, True)
+      # should be increased a bit to 0.023
+      corners = cv2.approxPolyDP(c, 0.03 * p, True)
       
       if len(corners) != 4:
           raise ValueError("Sheet is not defined by four corners.")
