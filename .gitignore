@@ -105,5 +105,6 @@ ENV/
 
 # data
 output/
+models/TrOCR/
 data/format_1/
 data/character_training_data/
