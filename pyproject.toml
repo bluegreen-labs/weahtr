@@ -18,5 +18,5 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/bluegreen-labs/weaHTR"
-Issues = "https://github.com/bluegreen-labs/weaHTR/issues"
+Homepage = "https://github.com/bluegreen-labs/weahtr"
+Issues = "https://github.com/bluegreen-labs/weahtr/issues"

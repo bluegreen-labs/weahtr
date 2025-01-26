@@ -96,24 +96,29 @@ pad_bottom: 0
 # the mean confidence values are stored)
 soft_val: 10
 
-#--- machine learning settings ---
+#--- machine learning model settings ---
 
-# trocr training settings
+# TrOCR training settings
 augmentation: True
 learning_rate: 5e-5
 epochs: 10
 batch_size: 4
 
 # prediction settings
-device: "cuda"
+device: "cuda" # default for default
 
 # model specific settings
+
+# tesseract has a fixed location for model files and
+# data needs to be copied from source (src) to
+# destination (dst) (also in the Docker setup)
 tesseract:
- path: "/usr/share/tesseract-ocr/5/tessdata/"
+ src_path: "/data/models/tesseract" # Docker path
+ dst_path: "/usr/share/tesseract-ocr/5/tessdata/"
  model: "cobecore-V6.traineddata"
  config: '--psm 8 -c tessedit_char_whitelist=0123456789.,'
 
 trocr:
- custom_path: "../src/weahtr/models/TrOCR/"
+ custom_path: "/data/models/TrOCR/" # Docker path
  model: "microsoft/trocr-base-stage1"
  processor: "microsoft/trocr-base-handwritten"
