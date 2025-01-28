@@ -140,13 +140,13 @@ import glob
 from weahtr.template import *
 
 # list files to process
-images =  glob.glob("./demo_input/format_1/images/*.jpg", recursive=True)
+images =  glob.glob("./demo/format_1/images/*.jpg", recursive=True)
 
 # initiate the setup
 t = template.template(
   images = images,
-  template = "./demo_input/format_1.jpg",
-  config = "./demo_input/format_1/format_1.yml"
+  template = "./demo/format_1.jpg",
+  config = "./demo/format_1/format_1.yml"
   )
 
 # match all templates, write homography data to file
@@ -227,7 +227,7 @@ from weahtr.generator import generator
 # generating numbers up to 3 digits long
 # with a decimal separator and random sign
 g = generator(
-  data_path = "input/data",
+  data_path = "/data/data/", # When using the Docker image
   background = "background_image.png",
   values = 3,
   decimal = True,
@@ -235,10 +235,10 @@ g = generator(
   )
 
 # generate 10 random samples and put output
-# in the designated path
+# in the designated path (your home directory)
 g.generate(
   samples = 10,
-  path = "~/output/path/"
+  path = "~"
 )
 ```
 
