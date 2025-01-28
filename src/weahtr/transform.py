@@ -9,7 +9,7 @@ from weahtr.utils import *
 # define binarization to be included in the training transform
 class Binarize(ImageOnlyTransform):
    def __init__(self, window_size, C, p = 0.5):
-      super().__init__(always_apply = True, p=1)
+      super().__init__(p = 1)
       self.window_size = window_size
       self.C = C
       self.p = p
@@ -55,20 +55,25 @@ train_transform = A.Compose([
     ], p=1),
   ], p=1),
   A.OneOf([
-    A.ShiftScaleRotate(
-      shift_limit=0.1,
-      scale_limit=0.2,
-      rotate_limit=5,
+    A.Affine(
+      translate_percent = 0.1,
+      scale=[0.2,0.2],
+      rotate = [0, 10],
       border_mode=cv2.BORDER_CONSTANT,
-      value=(255,255,255),
-      p=0.5),
+      fill = 255,
+      p=0.5
+    ),
     A.Affine(
       shear=random.randint(-5, 5),
-      mode=cv2.BORDER_CONSTANT,
-      cval=(255,255,255),
-      p=0.5)
+      border_mode = cv2.BORDER_CONSTANT,
+      fill = 255,
+      p=0.5
+    )
   ], p=1),
-  A.Blur(blur_limit=5,p=0.25),
+  A.Blur(
+    blur_limit = 5,
+    p=0.25
+  ),
 ])
 
 #--- transforms for the number generator
@@ -141,20 +146,19 @@ transform_grid = A.Compose([
   A.RandomCrop(
         height=200,
         width=200,
-        always_apply=None,
         p=1.0
    )
 ])
 
 transform_image = A.Compose([
   A.GaussNoise(
-    var_limit=(10.0, 50.0),
-    mean=0,
-    p=0.5
+    std_range=[0.2, 0.44],
+    mean_range = [0,0],
+    p = 0.5
   ),
   A.RandomBrightnessContrast(
-    brightness_limit=(-0.5, 0.5),
-    contrast_limit=(-0.5, 0.5),
+    brightness_limit = [-0.5, 0.5],
+    contrast_limit = [-0.5, 0.5],
     p=0.5
   )
 ])
