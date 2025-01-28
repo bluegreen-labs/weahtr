@@ -129,8 +129,32 @@ pip install weahtr --no-index --find-links /path/to/pkg
 The workflow consists of six steps:
 
 1. Sort your data into particular tabular formats, these should be unique.
-2. [Create empty, reference, template images](https://github.com/bluegreen-labs/weahtr_guides)
-3. [Mark rows and columns on the template images](https://github.com/bluegreen-labs/weahtr_guides)
+2. Create empty, reference, template images
+
+You can create black and white version using the algorithm included
+in the library using the code below.
+
+```python
+# import libraries
+import glob
+from weahtr.utils import *
+import cv2
+
+# returns an image cropping any dark borders
+# if they exist
+image = cv2.imread("your_empty_table.png")
+image, _, _ = replace_matte(image)
+
+# binarize (black/white) the data
+image = binarize(image)
+cv2.imwrite("template.png", image)
+```
+
+Further cleanup using the eraser tool of values in individual cells (if no
+empty table is available can be done in the image manipulation tool 
+[GIMP](https://www.gimp.org/))
+
+3. [Mark rows and columns on the template images in GIMP](https://github.com/bluegreen-labs/weahtr_guides)
 4. [Edit the configuration YAML file](https://github.com/bluegreen-labs/weahtr/blob/main/demo/format_1/format_1.yml)
 5. Template match the data to find the tables (three methods are provided)
 
