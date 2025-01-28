@@ -137,7 +137,8 @@ The workflow consists of six steps:
 ```python
 # import libraries
 import glob
-from weahtr.template import *
+from weahtr import *
+from weahtr.utils import *
 
 # list files to process
 images =  glob.glob("./demo/format_1/images/*.jpg", recursive=True)
@@ -168,8 +169,20 @@ table with data values.
 ```python
 # using the tesseract setup
 t.process(
-  method = "tesseract"
+  model = "tesseract"
 )
+
+# custom functions can be passed
+# to enhance text at the end
+# of the processing chain
+# the function must take a single
+# image as input and return
+# an RGB (3 band) image
+labels = t.process(
+  model = "tesseract",
+  f = remove_lines # included function to blend column and row lines
+)
+
 ```
 
 The ability to store the homography files allows you to pre-calculate all table
@@ -185,6 +198,7 @@ it is adviced to screen the logs and visual output for quality control
 # import libraries
 import glob, os
 from weahtr import *
+from weahtr.utils import *
 import pandas as pd
 
 # file with two columns:
