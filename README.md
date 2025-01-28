@@ -57,7 +57,7 @@ the Transformer based [TrOCR model](https://github.com/NielsRogge/Transformers-T
 Clone the package to your local directory.
 
 ```bash
-git clone https://github.com/bluegreen-labs/weaHTR_workflow.git
+git clone https://github.com/bluegreen-labs/weahtr.git
 ```
 
 ### Setup compute environments
@@ -167,7 +167,7 @@ table with data values.
 
 ```python
 # using the tesseract setup
-t.label(method = "tesseract")
+t.process(method = "tesseract")
 ```
 
 The ability to store the homography files allows you to pre-calculate all table
@@ -189,14 +189,14 @@ import pandas as pd
 # 'file_name' and 'text'
 # the file name only lists the
 # image file name (not the absolute long form path)
-df = pd.read_csv("../data/character_training_data/labels.csv")
+df = pd.read_csv("labels.csv")
 
 # setup model training
 m = weahtr.model(
   model = "trocr", # model to use
-  config = "./demo_input/format_1/format_1.yml", # config file
+  config = "config.yml", # config file
   labels = df, # data frame with the labels
-  images = "image/path" # path with the images listed in the data frame
+  images = "/image/path" # path with the images listed in the data frame
 )
 
 # initiate a training run
@@ -288,21 +288,36 @@ As with the `fft` method, a guides file with the location of cells in the table
 is only required for the transcription processing of the cell content, not the 
 table matching.
 
-## Demo scripts
+## Demo folder
 
-In the `analysis` folder of the project you find a number of demonstration
-scripts which should work within the provided Docker environment. These scripts
-allow you to experiment with the workflow, so you can familiarize yourself with
-the process.
+This is the demo folder containing sub-folders with various COBECORE data to
+test the toolbox on. Every sub-folder describes a particular table format from
+the larger COBECORE dataset. In addition, for testing and scalability purposes
+I've included three test images of the [ReData Zooniverse](https://www.zooniverse.org/projects/meteonetwork/redata) project which aims
+at recovering Italian climate data.
 
-These scripts rely on small demo datasets included in the github repository, and
-are real life examples of climate data recovery efforts. They include three
-data formats from data recovery efforts within the COBECORE (format 1 and 6) and
-VUB Hydrology department (Yangambi). The included tables are both in portrait and
-landscape mode. For each table format a configuration file (*.yml) and empty
-template is provided. Experimenting with different table detection / registration
-methods will show that these methods perform better or worse depending on the
-type and quality of the image/table provided.
+### Sub-folder content
+
+Every sub-folder contains a pre-configured workflow, which includes:
+
+- the {format}_workflow.py python script calling the library
+- the {format}.yml configuration file for a particular experiment
+- the {format}.jpg empty template file for `fft` and `feature` based template matching
+- the {format}.json file containing the location of rows and columns 
+  - annotated on the {format}.jpg template image using [the GIMP guides plugin](https://github.com/bluegreen-labs/weahtr_guides)
+
+The python script is configured to be run in the included Docker which
+can be compiled using the included Docker file. By default only slices are
+returned, for running the model set `slices=False` and select a transcription
+model in the configuration file. Note that `CUDA` acceleration is set by default
+and might not be available on all systems. Adjust the setting accordingly to
+`default` or `cpu`.
+
+The included model (i.e. tesseract based) might not work for you particular 
+data. I refer to [HTR/OCR workshop notes]() on how and if to retrain models.
+The library includes support for training your own TrOCR model, once more I
+refer to the workshop notes. However, trained output using the library can
+be called by referencing the final TrOCR model output in the `YML` config file.
 
 ## References
 
