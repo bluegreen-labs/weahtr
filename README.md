@@ -8,10 +8,9 @@ to automatically transcribe your weather records using machine learning.
 > This python package is a consolidation of previously dispersed proof-of-concept
 > script components written across years. Although consolidated, gaps in 
 > documentation and usability considerations still exist. For example, paths 
-> are not always validated and arguments might not have defaults.
->
-> Read the below documentation carefully before proceeding. The software is
-> provided AS IS and no responsibility is taken in the event of data loss.
+> are not always validated and arguments might not have defaults. Read the below
+> documentation carefully before proceeding. The software is provided AS IS and 
+> no responsibility is taken in the event of data loss.
 
 ## Introduction
 
@@ -107,7 +106,8 @@ conda env create -f environment.yml
 For now no `pip` based install is supported. You can install the package 
 by working in editor mode (if under development), or through a linked `pip`
 install. This works both in a Docker or in normal install, given that requirement
-are met. Editting mode also allows you to dynamically change the code.
+are met. Editing mode also allows you to dynamically change the code. Note that
+the package must be available on the mounted Docker volume.
 
 For editor mode use:
 ```bash
@@ -116,7 +116,7 @@ pip install -e /path/to/pkg
 
 For a static local install use:
 ```bash
-pip install mypackage --no-index --find-links /path/to/pkg
+pip install weahtr --no-index --find-links /path/to/pkg
 ```
 
 > [!NOTE]
@@ -129,9 +129,9 @@ pip install mypackage --no-index --find-links /path/to/pkg
 The workflow consists of six steps:
 
 1. Sort your data into particular tabular formats, these should be unique.
-2. [Create empty, reference, template images]()
-3. [Mark rows and columns on the template images]()
-4. [Edit the configuration YAML file]()
+2. [Create empty, reference, template images](https://github.com/bluegreen-labs/weahtr_guides)
+3. [Mark rows and columns on the template images](https://github.com/bluegreen-labs/weahtr_guides)
+4. [Edit the configuration YAML file](https://github.com/bluegreen-labs/weahtr/blob/main/demo/format_1/format_1.yml)
 5. Template match the data to find the tables (three methods are provided)
 
 ```python
@@ -167,7 +167,9 @@ table with data values.
 
 ```python
 # using the tesseract setup
-t.process(method = "tesseract")
+t.process(
+  method = "tesseract"
+)
 ```
 
 The ability to store the homography files allows you to pre-calculate all table
@@ -290,7 +292,7 @@ table matching.
 
 ## Demo folder
 
-This is the demo folder containing sub-folders with various COBECORE data to
+The demo folder containins sub-folders with various [COBECORE data](https://cobecore.org/) to
 test the toolbox on. Every sub-folder describes a particular table format from
 the larger COBECORE dataset. In addition, for testing and scalability purposes
 I've included three test images of the [ReData Zooniverse](https://www.zooniverse.org/projects/meteonetwork/redata) project which aims
@@ -302,7 +304,7 @@ Every sub-folder contains a pre-configured workflow, which includes:
 
 - the {format}_workflow.py python script calling the library
 - the {format}.yml configuration file for a particular experiment
-- the {format}.jpg empty template file for `fft` and `feature` based template matching
+- the {format}.jpg empty template file for `fft` and `features` based template matching
 - the {format}.json file containing the location of rows and columns 
   - annotated on the {format}.jpg template image using [the GIMP guides plugin](https://github.com/bluegreen-labs/weahtr_guides)
 
@@ -314,7 +316,7 @@ and might not be available on all systems. Adjust the setting accordingly to
 `default` or `cpu`.
 
 The included model (i.e. tesseract based) might not work for you particular 
-data. I refer to [HTR/OCR workshop notes]() on how and if to retrain models.
+data. I refer to [HTR/OCR workshop notes](https://bluegreen-labs.github.io/text_recognition_and_analysis/) on how and if to retrain models.
 The library includes support for training your own TrOCR model, once more I
 refer to the workshop notes. However, trained output using the library can
 be called by referencing the final TrOCR model output in the `YML` config file.
