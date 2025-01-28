@@ -59,7 +59,7 @@ class template():
     )
     
     try:
-      shutil.copyfile(
+      shutil.copy(
          model_path,
          self.config['tesseract']['dst_path']
       )
