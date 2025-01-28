@@ -331,7 +331,7 @@ class template():
     
     return dst
 
-  def __label_cells(self, im, cells, prefix, slices, m):
+  def __label_cells(self, im, cells, prefix, slices, m, f):
     
     # initiate empty vectores
     text = []
@@ -376,22 +376,12 @@ class template():
         # crop image to size
         crop_im = im[y_min:y_max, x_min:x_max]
         
-        # sensitive to parameters, remove for now
-        # try:
-        #   crop_im = subset_cell(crop_im)
-        # except:
-        #   #logging
-        #   continue
-        
-        if self.config['remove_lines']:
+        if f is not None:
           try:
-            crop_im = remove_lines(crop_im)
+            crop_im = f(crop_im)
           except:
             #logging
             continue
-        
-        # convert colour channels
-        cv2.imwrite("demo.png", crop_im)
         
         if slices:
           # write data slices to file
@@ -501,14 +491,21 @@ class template():
   # processing
   def match(self, preview = False, **kwargs):
     
+    # set template if not inherited
+    if not hasattr(self, 'template') and preview:
+      # set method as state variable
+      try:
+        self.template = kwargs['template']
+      except:
+        raise ValueError("No template is provided, while a preview is requested.")
+    
     # set method if not inherited
     if not hasattr(self, 'method'):
       # set method as state variable
       try:
         self.method = kwargs['method']
       except:
-        print("No method set in template or function call.")
-        raise
+        raise ValueError("No method set in template or function call.")
     
     # set guides if not inherited for the table method
     # requires referencing of the largest table outline
@@ -518,8 +515,7 @@ class template():
         try:
           self.guides = kwargs['guides']
         except:
-          print("No guides set in template or function call.")
-          raise
+          raise ValueError("No guides set in template or function call.")
     
     # read template
     template = cv2.imread(self.template, cv2.IMREAD_GRAYSCALE)
@@ -559,7 +555,10 @@ class template():
       if preview:
         
         # process using homography
-        dst = cv2.warpPerspective(im, h, (template.shape[1], template.shape[0]))
+        dst = cv2.warpPerspective(
+          im, h,
+          (template.shape[1], template.shape[0])
+        )
         
         # generate preview
         preview_match(
@@ -580,22 +579,26 @@ class template():
   # process matched templates
   def process(self, preview = False, slices = False, **kwargs):
     
-    # set method if not inherited
+    # set method if not inherited from
+    # first setup/template call
     if not hasattr(self, 'guides'):
       # set method as state variable
       try:
         self.guides = kwargs['guides']
       except:
-        print("No guides location set in template or function call.")
-        raise
+        raise ValueError("No guides location set in template or function call.")
     
     if not hasattr(self, 'model'):
       # set method as state variable
       try:
         self.model = kwargs['model']
       except:
-        print("No model set in template or function call.")
-        raise
+        raise ValueError("No model set in template or function call.")
+    
+    if 'f' in kwargs:
+      f = kwargs['f']
+    else:
+      f = None
     
     # Validating all inputs
     if not os.path.exists(self.guides):
@@ -656,6 +659,7 @@ class template():
             cells,
             pathname,
             slices,
-            m = m # forward the model
+            m = m, # forward the model
+            f = f # forward a post-processing function
         )
       
