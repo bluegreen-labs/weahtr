@@ -1,0 +1,124 @@
+# weaHTR config file
+#
+# All mentioned variables are required
+# note that the YML file is indentation
+# sensitive so only adjust the variable
+# names, or be careful when re-ordering
+# things.
+---
+
+#--- general settings ---
+
+# the configuration profile name
+# set this to a unique value per
+# profile and will affect the
+# naming convention on output
+# generated (for reproducibility)
+profile_name: "format_redata_demo"
+
+# where to output analysis data
+# this includes cropping and
+# template matching settings
+# as well as the ML labels
+# and log files (failed attempts)
+# this directory will be created if
+# it does not exist
+output: "/data/output/"
+
+#--- template matching settings ---
+
+# scale factor of image inputs - to speed up processing
+# and increase accuracy, the larger the table on the image
+# the smaller this value can be
+# for an almost fully covered image a value of 0.25 is good
+# for tables covering less 0.5 (less shrinking) yields
+# better results
+scale_ratio: 0.25
+
+# adaptive thresholding settings
+# [check logs and noise levels on template matching
+# previews to get insights into potential issues]
+# See opencv documentation at
+# https://docs.opencv.org/3.4/d7/d4d/tutorial_py_thresholding.html
+# on blockSize (window_size) and C under adaptive thresholding
+threshold:
+ window_size: 51
+ C: 10
+
+# these set hard bounds on some of the template matching methods
+# for example it limits translation or rotation over certain values
+# as those would be unrealistic (given a good data
+# acquisition protocol)
+features:
+ max_features: 20000 # maximum number of features to generate
+ translation_tolerance: 1000 # only allow translations X/Y pixels or less
+
+fft:
+ rotation_tolerance: 10
+ # only allow rotations of 10 degrees or less
+ translation_tolerance: 1000 # only allow translations X/Y pixels or less
+ scale_tolerance: 2 # scale factor can not exceed this value
+
+#--- transcription settings ---
+
+# Lines to skip, if you annotate headers and footers
+# for a full transcription using the "table" recognition
+# as required in order to fully outline the whole table
+# you can list the the rows to skip here, leave empty
+# for other methods where you don't need to reference
+# the whole table, in case you do skip rows remember
+# to re-index the table
+skip_rows: [1]
+
+# You can also select which columns to transcribe from
+# an annotated template with full guides. This allows you
+# to more easily subset for known parameters
+select_cols: [2,3]
+
+# remove vertical and horizontal (row and column) markers
+# by filling values with the mean page value
+remove_lines: True
+
+# padding factor fraction of the width height to
+# be added on either side of the selection
+# cell width +_ (cell width * x_pad)
+# cell height +_ (cell height * y_pad)
+pad_left: 0.1
+pad_right: 0.1
+pad_top: 0.3
+pad_bottom: 0
+
+# soft validation, soft validation creates N (10)
+# augmented images from the original, these
+# are slightly altered versions which should
+# give an idea of the robustness of the
+# transcription (only the majority class, and
+# the mean confidence values are stored)
+soft_val: 10
+
+#--- machine learning model settings ---
+
+# TrOCR training settings
+augmentation: True
+learning_rate: 5e-5
+epochs: 10
+batch_size: 4
+
+# prediction settings
+device: "cuda" # "default"" for default settings
+
+# model specific settings
+
+# tesseract has a fixed location for model files and
+# data needs to be copied from source (src) to
+# destination (dst) (also in the Docker setup)
+tesseract:
+ src_path: "/data/models/tesseract" # Docker path
+ dst_path: "/usr/share/tesseract-ocr/5/tessdata/"
+ model: "cobecore-V6.traineddata"
+ config: '--psm 8 -c tessedit_char_whitelist=0123456789.,'
+
+trocr:
+ custom_path: "/data/models/TrOCR/" # Docker path
+ model: "microsoft/trocr-base-stage1"
+ processor: "microsoft/trocr-base-handwritten"
