@@ -21,6 +21,7 @@ images =  glob.glob(
 def custom_function(image):
   image = remove_lines(image, mean_fill = True)
   image = binarize(image, window_size = 101, C = 15)
+  image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
   return(image)
 
 # convert and write to disk
@@ -29,9 +30,6 @@ image = cv2.imread(images[2])
 # custom function
 image_custom = custom_function(image)
 cv2.imwrite("custom_function.png", image_custom)
-
-# convert and write to disk
-image = cv2.imread(images[1])
 
 # use transformation function
 image_transform = train_transform(image = image)['image']

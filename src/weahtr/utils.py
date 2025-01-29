@@ -301,7 +301,6 @@ def most_common(lst):
     data = Counter(lst)
     return data.most_common(1)[0][0]
 
-
 def find_contours(image):
   # from this image which is all edges extract
   # the contours of this center area

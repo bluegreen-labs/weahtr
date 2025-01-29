@@ -63,14 +63,15 @@ class template():
       dst_path = "/opt/conda/envs/weahtr/share/tessdata/"
     else:
       dst_path = self.config['tesseract']['dst_path']
-      
-    try:
-      shutil.copy(
-        model_path,
-        dst_path
-      )
-    except:
-      print("Tesseract model or destination path does not exist!")
+    
+    if self.config['tesseract']['src_path'] != dst_path:
+      try:
+        shutil.copy(
+          model_path,
+          dst_path
+        )
+      except:
+        print("Tesseract model or destination path does not exist!")
     
     # check and create output directories
     if not os.path.exists(os.path.join(out_dir, sub_dir, 'homography')):
@@ -429,6 +430,10 @@ class template():
             
               i = 1
               while i <= self.config['soft_val']:
+                # convert to RGB if single band
+                # grayscale/binary
+                if crop_im.shape[2] == 1:
+                    crop_im = cv2.cvtColor(crop_im, cv2.COLOR_GRAY2RGB)
                 # augment the original image
                 # using the train transform
                 crop_im_aug = train_transform(image = crop_im)['image']

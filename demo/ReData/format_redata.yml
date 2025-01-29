@@ -73,7 +73,7 @@ skip_rows: [1]
 # You can also select which columns to transcribe from
 # an annotated template with full guides. This allows you
 # to more easily subset for known parameters
-select_cols: [2,3]
+select_cols: [6]
 
 # remove vertical and horizontal (row and column) markers
 # by filling values with the mean page value
@@ -83,9 +83,9 @@ remove_lines: True
 # be added on either side of the selection
 # cell width +_ (cell width * x_pad)
 # cell height +_ (cell height * y_pad)
-pad_left: 0.1
-pad_right: 0.1
-pad_top: 0.3
+pad_left: 0
+pad_right: 0
+pad_top: 0
 pad_bottom: 0
 
 # soft validation, soft validation creates N (10)
@@ -113,14 +113,13 @@ device: "cuda" # "default"" for default settings
 # data needs to be copied from source (src) to
 # destination (dst) (also in the Docker setup)
 tesseract:
- src_path: "/data/models/tesseract" # should be available to Docker
+ src_path: "/data/models/tesseract/" # should be available to Docker
  dst_path: "/opt/conda/envs/weahtr/share/tessdata/" # Docker path
  bin_path: "/opt/conda/envs/weahtr/bin/" # Docker path for binary
  model: "cobecore-V6.traineddata"
- config: '--psm 8 -c tessedit_char_whitelist=0123456789.,'
+ config: '--psm 8 -c tessedit_char_whitelist=0123456789NSWEnswe.,'
 
 trocr:
  custom_path: "/data/models/TrOCR/" # Docker path
  model: "microsoft/trocr-base-stage1"
  processor: "microsoft/trocr-base-handwritten"
-
