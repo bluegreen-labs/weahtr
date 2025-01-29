@@ -117,6 +117,7 @@ class model:
     # split out the content
     text = ocr_result.text.iloc[0]
     confidence = ocr_result.conf.iloc[0]
+    
     return text, confidence
   
   def __predict_trocr(self, image):

@@ -343,7 +343,6 @@ class template():
     text = []
     conf = []
     file_name = []
-    augmentation = []
     row = []
     col = []
     x = []
@@ -356,7 +355,17 @@ class template():
     # row and column locations
     t = tqdm(cells.iterrows(), total=cells.shape[0], leave = False)
     for index, cell in t:
-      t.set_description("Processing column %i, row %i " % (cell['col'], cell['row']), refresh=True)
+      t.set_description(
+        "Processing column %i, row %i " % (cell['col'], cell['row']),
+        refresh = True
+      )
+      
+      # add filename and row / col numbers
+      file_name.append(prefix)
+      col.append(cell['col'])
+      row.append(cell['row'])
+      x.append(cell['x_min'])
+      y.append(cell['y_max'] - (cell['y_max'] - cell['y_min'])/4)
       
       try: # traps failures to crop properly
         
@@ -371,7 +380,6 @@ class template():
         # apply padding factors
         pad_left = int((cell['x_max'] - cell['x_min']) * self.config['pad_left'])
         pad_right = int((cell['x_max'] - cell['x_min']) * self.config['pad_right'])
-        
         pad_top = int((cell['y_max'] - cell['y_min']) * self.config['pad_top'])
         pad_bottom = int((cell['y_max'] - cell['y_min']) * self.config['pad_bottom'])
         
@@ -401,14 +409,18 @@ class template():
           cv2.imwrite(filename, crop_im)
           
         else:
-            
           try:
             # transcription based upon model forwarded
             # and selected in config
             label, confidence = m.predict(crop_im)
             text.append(label)
             conf.append(round(confidence, 3))
+          except:
+            # write label output data to vectors
+            conf.append(0)
+            text.append('//')
             
+          try:
             # soft validation runs
             if self.config['soft_val'] > 0:
               
@@ -420,42 +432,27 @@ class template():
                 # augment the original image
                 # using the train transform
                 crop_im_aug = train_transform(image = crop_im)['image']
-                cv2.imwrite("demo.png", crop_im_aug)
                 
                 # classification
-                label_aug, confidence_aug = m.predict(crop_im)
+                label_aug, confidence_aug = m.predict(crop_im_aug)
                 text_tmp.append(label_aug)
                 conf_tmp.append(confidence_aug)
                 i += 1
               
-              print(text_tmp)
+              # calculate unique largest fraction
+              tmp_frac = round(1 - len(list(set(text_tmp)))/self.config['soft_val'], 3)
+              
+              # add the number of classes detected
+              majority_frac.append(tmp_frac)
+              
               label_aug = most_common(text_tmp)
               conf_aug = np.average(conf_tmp)
-                
-              # add the number of classes detected
-              majority_frac.append(
-                  round(1 - len(list(set(label_aug)))/self.config['soft_val'], 3)
-              )  
               text_soft_val.append(label_aug)
               conf_soft_val.append(round(conf_aug, 3))
-            else:
-              text_soft_val.append('//')
-              conf_soft_val.append('0')
-              majority_frac.append('0')
-                
           except:
-            # write label output data to vectors
             majority_frac.append(0)
-            conf.append(0)
-            text.append('//')
-                
-          # add filename and row / col numbers
-          file_name.append(prefix)
-          col.append(cell['col'])
-          row.append(cell['row'])
-          x.append(cell['x_min'])
-          y.append(cell['y_max'] - (cell['y_max'] - cell['y_min'])/4)
-     
+            text_soft_val.append('//')
+            conf_soft_val.append(0)
       except:
        # Continue to next iteration
        continue
@@ -468,7 +465,7 @@ class template():
          'conf': conf,
          'text_val': text_soft_val,
          'conf_val': conf_soft_val,
-         #'majority_frac': majority_frac,
+         'majority_frac': majority_frac,
          'col':col,
          'row':row,
          'x': x,
@@ -485,6 +482,7 @@ class template():
       
       # write data to disk
       df.to_csv(filename, sep=',', index = False)
+      
       return df
 
   #--- public functions ----
@@ -616,7 +614,7 @@ class template():
     if not os.path.exists(self.guides):
       raise ValueError("Template guides file does not exist, check path ...")
     
-    # read template
+    # read template for previews
     template = cv2.imread(self.template, cv2.IMREAD_GRAYSCALE)
     
     # load template guides
@@ -626,6 +624,9 @@ class template():
     # and columns to process
     cells = cells[~cells["row"].isin(self.config['skip_rows'])]
     cells = cells[cells["col"].isin(self.config['select_cols'])]
+    
+    # create empty labels placeholder
+    output = pd.DataFrame()
     
     # check if file exists, save homography file
     h_file = os.path.join(
@@ -674,4 +675,7 @@ class template():
             m = m, # forward the model
             f = f # forward a post-processing function
         )
-      
+        
+        # concat stuff
+        output = pd.concat([output, labels], ignore_index=True)
+    return output
