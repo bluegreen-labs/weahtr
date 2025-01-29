@@ -2,7 +2,7 @@
 
 # import libraries
 import glob, os
-from weahtr import *
+from weahtr import * 
 from weahtr.utils import *
 
 # set base directory
@@ -32,13 +32,9 @@ t.match(preview = True)
 
 # run model without transcription
 # only return the subsets of the
-# rows and columsn selected in the
-# config file
-# t.process(
-#   model = "tesseract",
-#   slices = True, # only return "sliced" table output
-#   f = remove_lines # apply the remove lines function on each cell
-# )
+# rows and columns selected in the
+# config file and a custom pre-processing
+# function
 
 def custom_function(image):
   image = remove_lines(image)
@@ -49,7 +45,5 @@ def custom_function(image):
 labels = t.process(
   model = "tesseract",
   slices = False
+  f = custom_function
 )
-
-print(labels)
-
