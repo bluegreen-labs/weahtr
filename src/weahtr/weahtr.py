@@ -682,5 +682,5 @@ class template():
       # be better but not as flexible, data is alsw
       # written to file so output internally can be
       # scrapped
-      output = pd.concat([output, labels], ignore_index=True)
-    return output
+    #   output = pd.concat([output, labels], ignore_index=True)
+    # return output
