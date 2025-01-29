@@ -22,7 +22,7 @@ t = weahtr.template(
   template = os.path.join(base, "demo/format_1/format_1.jpg"),
   config = os.path.join(base, "demo/format_1/format_1.yml"),
   guides = os.path.join(base,"demo/format_1/format_1_full.json"),
-  method = "table",
+  method = "features",
   model = "tesseract"
 )
 
@@ -36,14 +36,15 @@ t.match(preview = True)
 # config file and a custom pre-processing
 # function
 
+# define custom function
 def custom_function(image):
-  image = remove_lines(image)
-  image = binarize(image)
+  image = remove_lines(image, mean_fill = True)
+  image = binarize(image, window_size = 101, C = 15)
+  image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
   return(image)
 
 # transcribe the first two columns
 labels = t.process(
   model = "tesseract",
-  slices = False
-  f = custom_function
+  preview = True
 )
