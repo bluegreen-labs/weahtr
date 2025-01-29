@@ -406,10 +406,6 @@ class template():
             # transcription based upon model forwarded
             # and selected in config
             label, confidence = m.predict(crop_im)
-            
-            print(label)
-            print(confidence)
-            
             text.append(label)
             conf.append(round(confidence, 3))
             
@@ -465,7 +461,6 @@ class template():
        continue
     
     if not slices:
-      print(majority_frac)
       
       # concat data into pandas data frame
       df = pd.DataFrame(
