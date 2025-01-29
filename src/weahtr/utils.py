@@ -358,7 +358,12 @@ def remove_lines(image, mean_fill = True):
   image_bin = cv2.bitwise_not(image_bin)
   
   # hough lines
-  linesP = cv2.HoughLinesP(image_bin, 1, np.pi/180, 50, None, 50, 100)
+  linesP = cv2.HoughLinesP(
+    image_bin,
+    1, np.pi/180, 50, None,
+    min(image_bin.shape[0:1]) * 0.8, # length to be considered a line
+    10 # how many pixels to consider not a gap
+  )
   
   if mean_fill:
     # mean colours of image
