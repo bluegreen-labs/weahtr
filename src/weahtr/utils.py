@@ -114,7 +114,6 @@ def binarize(image, window_size = 91, C = 6):
   # use dilate as using inverted image
   kernel = np.ones((3, 3), np.uint8)
   image = cv2.dilate(image, kernel)
-
   return image
 
 def load_guides(filename):
