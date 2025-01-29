@@ -33,6 +33,7 @@ dependencies:
   - jiwer
 # OCR components
   - pytesseract
+  - tesseract
   - pip:
      - evaluate
      - torch

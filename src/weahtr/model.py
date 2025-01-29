@@ -23,6 +23,7 @@ logging.set_verbosity_error()
 from weahtr.utils import *
 from weahtr.transform import *
 from weahtr.dataloader import *
+import pytesseract
 
 class model_loader:
   def load_trocr(processor_model, encoder_model, device, train = True):
@@ -90,11 +91,22 @@ class model:
   #----- private functions ----
   
   def __predict_tesseract(self, image):
+    
+    # set default path on Docker
+    if os.path.exists("/.dockerenv"):
+      bin_path = "/opt/conda/envs/weahtr/bin/"
+    else:
+      bin_path = self.config['tesseract']['bin_path']
+
+    # set path binary
+    pytesseract.pytesseract.tesseract_cmd = os.path.join(bin_path, "tesseract")
+
+    # extract values
     ocr_result = pytesseract.image_to_data(
       image,
-      lang = self.config['tesseract']['model'],
+      lang = os.path.splitext(self.config['tesseract']['model'])[0],
       config = self.config['tesseract']['config'],
-      output_type='data.frame'
+      output_type = 'data.frame'
     )
 
     # get results with maximum confidence
@@ -232,7 +244,7 @@ class model:
     if self.model == "tesseract":
       text, confidence = self.__predict_tesseract(image)
       if np.isnan(text):
-        text = '/'
+        text = '//'
         confidence = 0
     
     return text, confidence

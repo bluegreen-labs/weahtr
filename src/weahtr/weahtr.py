@@ -1,5 +1,5 @@
 # libraries
-import os, yaml, json
+import os, yaml, json, time
 import numpy as np
 import pandas as pd
 import cv2
@@ -58,10 +58,16 @@ class template():
          self.config['tesseract']['model']
     )
     
+    # if on Docker set dst_path
+    if os.path.exists("/.dockerenv"):
+      dst_path = "/opt/conda/envs/weahtr/share/tessdata/"
+    else:
+      dst_path = self.config['tesseract']['dst_path']
+      
     try:
       shutil.copy(
-         model_path,
-         self.config['tesseract']['dst_path']
+        model_path,
+        dst_path
       )
     except:
       print("Tesseract model or destination path does not exist!")
@@ -344,6 +350,7 @@ class template():
     y = []
     text_soft_val = []
     conf_soft_val = []
+    majority_frac = []
     
     # generates cropped sections based upon
     # row and column locations
@@ -388,17 +395,29 @@ class template():
           # for post processing such as citizen science or model training
           filename = os.path.join(
               self.preview_path,
-              prefix + "_" + self.config['profile_name'] + "_" + str(cell['col']) + "_" + str(cell['row']) + ".jpg"
+              prefix + "_" + self.config['profile_name'] + 
+              "_" + str(cell['col']) + "_" + str(cell['row']) + ".jpg"
           )
           cv2.imwrite(filename, crop_im)
+          time.sleep(1)
+          
+          # transcription based upon model forwarded
+          # and selected in config
+          label, confidence = m.predict(crop_im)
+          
+          print(label)
+          print(confidence)
         
         else:
             
-          try: # traps transcription failures
-          
+          try:
             # transcription based upon model forwarded
             # and selected in config
             label, confidence = m.predict(crop_im)
+            
+            print(label)
+            print(confidence)
+            
             text.append(label)
             conf.append(round(confidence, 3))
             
@@ -407,33 +426,38 @@ class template():
               
               text_tmp = []
               conf_tmp = []
-              majority_frac = []
             
               i = 1
               while i <= self.config['soft_val']:
                 # augment the original image
                 # using the train transform
                 crop_im_aug = train_transform(image = crop_im)['image']
-    
+                cv2.imwrite("demo.png", crop_im_aug)
+                
                 # classification
                 label_aug, confidence_aug = m.predict(crop_im)
                 text_tmp.append(label_aug)
                 conf_tmp.append(confidence_aug)
                 i += 1
-    
-                label_aug = most_common(text_tmp)
-                conf_aug = np.average(conf_tmp)
+              
+              print(text_tmp)
+              label_aug = most_common(text_tmp)
+              conf_aug = np.average(conf_tmp)
                 
-                # add the number of classes detected
-                majority_frac.append(
+              # add the number of classes detected
+              majority_frac.append(
                   round(1 - len(list(set(label_aug)))/self.config['soft_val'], 3)
-                )
-                
-                text_soft_val.append(label_aug)
-                conf_soft_val.append(round(conf_aug, 3))
+              )  
+              text_soft_val.append(label_aug)
+              conf_soft_val.append(round(conf_aug, 3))
+            else:
+              text_soft_val.append('//')
+              conf_soft_val.append('0')
+              majority_frac.append('0')
                 
           except:
             # write label output data to vectors
+            majority_frac.append(0)
             conf.append(0)
             text.append('//')
                 
@@ -449,6 +473,7 @@ class template():
        continue
     
     if not slices:
+      print(majority_frac)
       
       # concat data into pandas data frame
       df = pd.DataFrame(
@@ -456,7 +481,7 @@ class template():
          'conf': conf,
          'text_val': text_soft_val,
          'conf_val': conf_soft_val,
-         'majority_frac_val': majority_frac,
+         #'majority_frac': majority_frac,
          'col':col,
          'row':row,
          'x': x,

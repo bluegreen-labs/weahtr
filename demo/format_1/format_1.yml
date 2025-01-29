@@ -113,8 +113,9 @@ device: "cuda" # "default"" for default settings
 # data needs to be copied from source (src) to
 # destination (dst) (also in the Docker setup)
 tesseract:
- src_path: "/data/models/tesseract" # Docker path
- dst_path: "/usr/share/tesseract-ocr/5/tessdata/"
+ src_path: "/data/models/tesseract" # should be available to Docker
+ dst_path: "/opt/conda/envs/weahtr/share/tessdata/" # Docker path
+ bin_path: "/opt/conda/envs/weahtr/bin/" # Docker path for binary
  model: "cobecore-V6.traineddata"
  config: '--psm 8 -c tessedit_char_whitelist=0123456789.,'
 

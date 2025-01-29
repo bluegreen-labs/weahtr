@@ -26,9 +26,10 @@ RUN apt-get install -y libgl1 libavcodec-dev libavformat-dev libswscale-dev \
 
 # install tessaract from developer PPA
 # with both legacy v3 and v4 support
-RUN add-apt-repository ppa:alex-p/tesseract-ocr-devel
-RUN apt-get update
-RUN apt-get install -y tesseract-ocr
+#RUN add-apt-repository ppa:alex-p/tesseract-ocr-devel
+#RUN apt-get update
+#RUN apt-get install -y libleptonica-dev tesseract-ocr tesseract-ocr-dev \
+#  libtesseract-dev python3-pil tesseract-ocr-eng tesseract-ocr-script-latn
 
 # install miniconda
 ENV CONDA_DIR /opt/conda
