@@ -103,7 +103,7 @@ conda env create -f environment.yml
 
 ### Loading the package locally
 
-For now no `pip` based install is supported. You can install the package 
+For now, no online `pip` based install is supported. You can install the package 
 by working in editor mode (if under development), or through a linked `pip`
 install. This works both in a Docker or in normal install, given that requirement
 are met. Editing mode also allows you to dynamically change the code. Note that
@@ -150,9 +150,9 @@ image = binarize(image)
 cv2.imwrite("template.png", image)
 ```
 
-Further cleanup using the eraser tool of values in individual cells (if no
-empty table is available can be done in the image manipulation tool 
-[GIMP](https://www.gimp.org/))
+Further cleanup to create and empty template, using the eraser tool, of values 
+in individual cells if no empty table is available can be done in the image
+manipulation tool [GIMP](https://www.gimp.org/))
 
 3. [Mark rows and columns on the template images in GIMP](https://github.com/bluegreen-labs/weahtr_guides)
 4. [Edit the configuration YAML file](https://github.com/bluegreen-labs/weahtr/blob/main/demo/format_1/format_1.yml)
@@ -206,15 +206,14 @@ labels = t.process(
   model = "tesseract",
   f = remove_lines # included function to blend column and row lines
 )
-
 ```
 
-The ability to store the homography files allows you to pre-calculate all table
+The ability to store the homography file allows you to pre-calculate all table
 template matching / image registration up front, so this step does not need to 
 be repeated when running the table through different OCR/HTR transcription
 models. This should allow you to iterate quickly over various ML models once the
 image registration is completed and saved to file. Finally, after every run
-it is adviced to screen the logs and visual output for quality control
+it is advised to screen the logs and visual output for quality control
 
 ## Training models
 
