@@ -56,18 +56,17 @@ train_transform = A.Compose([
   ], p=1),
   A.OneOf([
     A.Affine(
-      translate_percent = 0.1,
-      scale=[0.2,0.2],
-      rotate = [0, 10],
+      translate_percent = 0.025,
+      rotate = [-5, 5],
       border_mode=cv2.BORDER_CONSTANT,
       fill = 255,
-      p=0.5
+      p = 0.5
     ),
     A.Affine(
       shear=random.randint(-5, 5),
       border_mode = cv2.BORDER_CONSTANT,
       fill = 255,
-      p=0.5
+      p = 0.5
     )
   ], p=1),
   A.Blur(

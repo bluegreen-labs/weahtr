@@ -676,6 +676,11 @@ class template():
             f = f # forward a post-processing function
         )
         
-        # concat stuff
+        # concat stuff / this is probably
+        # a bad idea for very large datasets as
+        # not memory efficient / pre-allocation would
+        # be better but not as flexible, data is alsw
+        # written to file so output internally can be
+        # scrapped
         output = pd.concat([output, labels], ignore_index=True)
     return output
