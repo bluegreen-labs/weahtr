@@ -1,5 +1,5 @@
 # libraries
-import os, yaml, json, time
+import os, yaml, json
 import numpy as np
 import pandas as pd
 import cv2
@@ -399,15 +399,7 @@ class template():
               "_" + str(cell['col']) + "_" + str(cell['row']) + ".jpg"
           )
           cv2.imwrite(filename, crop_im)
-          time.sleep(1)
           
-          # transcription based upon model forwarded
-          # and selected in config
-          label, confidence = m.predict(crop_im)
-          
-          print(label)
-          print(confidence)
-        
         else:
             
           try:
