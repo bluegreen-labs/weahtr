@@ -15,7 +15,11 @@ class Binarize(ImageOnlyTransform):
       self.p = p
    def apply(self, img, **params):
       if np.random.uniform(0, 1) > self.p:
-       img_new = binarize(img, window_size = self.window_size, C = self.C)
+       img_new = binarize(
+         img,
+         window_size = self.window_size,
+         C = self.C
+        )
        img_new = cv2.cvtColor(img_new, cv2.COLOR_GRAY2BGR)
       else:
        img_new = img
