@@ -658,29 +658,29 @@ class template():
       # to fit the template and derived guides
       matched_image = self.__transform(image, np.array(h))
       
+      # label the cells in the table / sheet / header
+      labels = self.__label_cells(
+          matched_image,
+          cells,
+          pathname,
+          slices,
+          m = m, # forward the model
+          f = f # forward a post-processing function
+      )
+      
       # only provide a preview when not processing slices (cells)
       if preview and not slices:
         preview_labels(
           matched_image,
           labels,
           os.path.join(self.label_path, pathname + ".jpg")
-          )
-      else:
-        # label the cells in the table / sheet / header
-        labels = self.__label_cells(
-            matched_image,
-            cells,
-            pathname,
-            slices,
-            m = m, # forward the model
-            f = f # forward a post-processing function
         )
-        
-        # concat stuff / this is probably
-        # a bad idea for very large datasets as
-        # not memory efficient / pre-allocation would
-        # be better but not as flexible, data is alsw
-        # written to file so output internally can be
-        # scrapped
-        output = pd.concat([output, labels], ignore_index=True)
+      
+      # concat stuff / this is probably
+      # a bad idea for very large datasets as
+      # not memory efficient / pre-allocation would
+      # be better but not as flexible, data is alsw
+      # written to file so output internally can be
+      # scrapped
+      output = pd.concat([output, labels], ignore_index=True)
     return output

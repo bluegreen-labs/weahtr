@@ -353,16 +353,19 @@ def find_contours(image):
 # lines by replacing it with the 
 # average colour
 # NOTE: Ugly clean up
-def remove_lines(image):
+def remove_lines(image, mean_fill = True):
   image_bin = binarize(image)
   image_bin = cv2.bitwise_not(image_bin)
   
   # hough lines
   linesP = cv2.HoughLinesP(image_bin, 1, np.pi/180, 50, None, 50, 100)
   
-  # mean colours of image
-  colours = image.mean(axis=0).mean(axis=0)
-  colours = (int(colours[0]),int(colours[1]),int(colours[2]))
+  if mean_fill:
+    # mean colours of image
+    colours = image.mean(axis=0).mean(axis=0)
+    colours = (int(colours[0]),int(colours[1]),int(colours[2]))
+  else:
+    colours = (255,255,255)
   
   rows = []
   cols = []
