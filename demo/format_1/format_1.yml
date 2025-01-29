@@ -73,7 +73,7 @@ skip_rows: [1]
 # You can also select which columns to transcribe from
 # an annotated template with full guides. This allows you
 # to more easily subset for known parameters
-select_cols: [2,3]
+select_cols: [2]
 
 # remove vertical and horizontal (row and column) markers
 # by filling values with the mean page value
