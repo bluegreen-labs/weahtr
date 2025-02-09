@@ -112,12 +112,17 @@ class model:
     # get results with maximum confidence
     # assume only one viable result per image
     # see psm 8 setting and conservative (tight) cropping
-    ocr_result = ocr_result[ocr_result.conf == max(ocr_result.conf)]
-    
-    # split out the content
-    text = ocr_result.text.iloc[0]
-    confidence = ocr_result.conf.iloc[0]
-    
+    if self.config['tesseract']['raw']:
+      ocr_result = ocr_result.dropna(how='any')
+      text = ocr_result.text.str.cat(sep=' ')
+      confidence = np.average(ocr_result.conf)
+    else:
+      ocr_result = ocr_result[ocr_result.conf == max(ocr_result.conf)]
+
+      # split out the content
+      text = ocr_result.text.iloc[0]
+      confidence = ocr_result.conf.iloc[0]
+
     return text, confidence
   
   def __predict_trocr(self, image):
@@ -244,8 +249,9 @@ class model:
     
     if self.model == "tesseract":
       text, confidence = self.__predict_tesseract(image)
-      if np.isnan(text):
-        text = '//'
-        confidence = 0
+
+      #if not text or np.isnan(text): # if text is empty return placeholder
+      #  text = '//'
+      #  confidence = 0
     
     return text, confidence
