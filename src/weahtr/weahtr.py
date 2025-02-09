@@ -1,5 +1,5 @@
 # libraries
-import os, yaml, json
+import os, yaml, json, csv
 import numpy as np
 import pandas as pd
 import cv2
@@ -486,7 +486,7 @@ class template():
       )
       
       # write data to disk
-      df.to_csv(filename, sep=',', index = False)
+      df.to_csv(filename, sep=',', index = False, quoting=csv.QUOTE_NONNUMERIC)
       
       return df
 
