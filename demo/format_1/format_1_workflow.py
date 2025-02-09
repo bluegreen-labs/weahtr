@@ -28,7 +28,7 @@ t = weahtr.template(
 
 # match all templates, write homography datat to file
 # updates state of "t" with log files
-t.match(preview = True)
+#t.match(preview = True)
 
 # run model without transcription
 # only return the subsets of the
@@ -46,5 +46,6 @@ def custom_function(image):
 # transcribe the first two columns
 labels = t.process(
   model = "tesseract",
-  preview = True
+  preview = True,
+  f = custom_function
 )

@@ -27,7 +27,14 @@ t = weahtr.template(
 
 # match all templates, write homography datat to file
 # updates state of "t" with log files
-t.match(preview = True)
+#t.match(preview = True)
+
+# define custom function
+def custom_function(image):
+  image = remove_lines(image, mean_fill = True)
+  image = binarize(image, window_size = 101, C = 15)
+  image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+  return(image)
 
 # run model without transcription
 # only return the subsets of the
@@ -35,6 +42,7 @@ t.match(preview = True)
 # config file
 labels = t.process(
   model = "tesseract",
-  slices = True, # only return "sliced" table output
+  slices = False, # only return "sliced" table output
+  preview = True,
   f = remove_lines # apply the remove lines function on each cell
 )

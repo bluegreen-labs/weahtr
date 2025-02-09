@@ -73,7 +73,7 @@ skip_rows: [1]
 # You can also select which columns to transcribe from
 # an annotated template with full guides. This allows you
 # to more easily subset for known parameters
-select_cols: [2]
+select_cols: [2,3,9]
 
 # remove vertical and horizontal (row and column) markers
 # by filling values with the mean page value
@@ -94,7 +94,7 @@ pad_bottom: 0
 # give an idea of the robustness of the
 # transcription (only the majority class, and
 # the mean confidence values are stored)
-soft_val: 10
+soft_val: 1
 
 #--- machine learning model settings ---
 
@@ -117,7 +117,8 @@ tesseract:
  dst_path: "/opt/conda/envs/weahtr/share/tessdata/" # Docker path
  bin_path: "/opt/conda/envs/weahtr/bin/" # Docker path for binary
  model: "cobecore-V6.traineddata"
- config: '--psm 8 -c tessedit_char_whitelist=0123456789.,'
+ config: '--psm 8 -c tessedit_char_whitelist=0123456789,'
+ raw: False
 
 trocr:
  custom_path: "/data/models/TrOCR/" # Docker path
