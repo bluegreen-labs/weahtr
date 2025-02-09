@@ -102,6 +102,7 @@ ENV/
 
 # R
 .Rproj.user/
+.Rhistory
 
 # data
 output/
