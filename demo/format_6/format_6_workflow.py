@@ -44,5 +44,5 @@ labels = t.process(
   model = "tesseract",
   slices = False, # only return "sliced" table output
   preview = True,
-  f = remove_lines # apply the remove lines function on each cell
+  f = custom_function # apply the remove lines function on each cell
 )
