@@ -3,13 +3,10 @@ channels:
   - conda-forge
 #  - pytorch-nightly
 
-# ignore default due to
-# subscription service shenanigans
-
 dependencies:
 # General python settings
-  - python>=3.11
-  - conda>=23.5.2
+  - python==3.8
+  - conda
   - wheel
   - pip
 # Data science / computer vision components
@@ -34,8 +31,10 @@ dependencies:
 # OCR components
   - pytesseract
   - tesseract
+  - mittagessen::kraken
   - pip:
      - evaluate
      - torch
      - torchvision
-
+     - nnutils-pytorch-cuda
+     - pylaia
