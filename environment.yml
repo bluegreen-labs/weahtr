@@ -1,11 +1,12 @@
 name: weahtr
 channels:
-  - conda-forge
-#  - pytorch-nightly
+  - conda-forge # to be OSS stay away from default
+
+# functional PyLaia setup
 
 dependencies:
 # General python settings
-  - python==3.8
+  - python
   - conda
   - wheel
   - pip
@@ -28,10 +29,11 @@ dependencies:
   - datasets
   - transformers
   - jiwer
+  - shapely
+  - coremltools
 # OCR components
   - pytesseract
   - tesseract
-  - mittagessen::kraken
   - pip:
      - evaluate
      - torch

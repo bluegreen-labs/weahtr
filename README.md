@@ -70,16 +70,22 @@ involved. Once build locally no further downloads will be required.
 ```bash
 docker build -f Dockerfile -t weahtr .
 ```
+
+The default install above provides support for [PyLaia](https://github.com/jpuigcerver/PyLaia)
+and [Tesseract](https://tesseract-ocr.github.io/). If you want support for the
+[Kraken](https://kraken.re/main/index.html) environment use the following code:
+
+```bash
+docker build -f Dockerfile_kraken -t weahtr .
+```
+
 > [!NOTE]
-> Repeatedly building a docker image can result in a large cache being created
-> easily 10x the data of the image (which in itself is multiple GB in size).
->
-> If you find you are running out of storage space out of the blue, check the
-> docker build cache, and prune it.
-> 
+> Both the PyLaia and Kraken environments support various open source models
+> You can list all available Kraken models by using the command line:
 > ```bash
-> docker buildx prune -f
+> kraken list
 > ```
+> PyLaia models can be found on [HugginFace](https://huggingface.co/Teklia).
 
 Make sure to have interfacing libraries running, when relying on different 
 docker base images.
@@ -100,6 +106,17 @@ For independent installs using conda
 ```bash
 conda env create -f environment.yml
 ```
+
+> [!NOTE]
+> Repeatedly building a docker image can result in a large cache being created
+> easily 10x the data of the image (which in itself is multiple GB in size).
+>
+> If you find you are running out of storage space out of the blue, check the
+> docker build cache, and prune it.
+> 
+> ```bash
+> docker buildx prune -f
+> ```
 
 ### Loading the package locally
 
