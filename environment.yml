@@ -1,12 +1,13 @@
 name: weahtr
 channels:
   - conda-forge # to be OSS stay away from default
-
+  - nodefaults
+  
 # functional PyLaia setup
 
 dependencies:
 # General python settings
-  - python
+  - python==3.8
   - conda
   - wheel
   - pip

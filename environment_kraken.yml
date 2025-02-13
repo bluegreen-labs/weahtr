@@ -1,6 +1,7 @@
 name: weahtr
 channels:
   - conda-forge # to be OSS stay away from default
+  - nodefaults
 
 # Dependencies taken from the kraken repo:
 # https://github.com/mittagessen/kraken/blob/main/environment_cuda.yml
