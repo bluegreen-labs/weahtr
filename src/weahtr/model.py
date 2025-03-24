@@ -3,27 +3,44 @@
 # underlying model and framework and are
 # described in other files
 import os, glob, math
-import torch
-from torch.utils.data import Dataset
-from torch.utils.data import DataLoader
-from transformers import VisionEncoderDecoderModel
-from transformers import default_data_collator
 from evaluate import load
 import cv2
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import train_test_split
-from transformers import TrOCRProcessor
-from transformers import AdamW
 from tqdm import tqdm
 import yaml
-from transformers.utils import logging
-logging.set_verbosity_error() 
+from packaging.version import Version
 
+# general ML
+from sklearn.model_selection import train_test_split
+
+# TrOCR
+import torch
+
+# Python environment shitshow. If pylaia is installed
+# it will be version 1.3 ... for TrOCR one needs
+# a recent 2.6 version. TrOCR will not work on the
+# same environment as pylaia
+if Version(torch.__version__) > Version("2.6"):
+  from torch.utils.data import Dataset
+  from torch.utils.data import DataLoader
+  from transformers import VisionEncoderDecoderModel
+  from transformers import default_data_collator
+  from transformers import TrOCRProcessor
+  from transformers import AdamW
+  from transformers.utils import logging
+  logging.set_verbosity_error()
+
+# pylaiai
+from laia.scripts.htr import decode_ctc
+
+# pytesseract
+import pytesseract
+
+# weahtr
 from weahtr.utils import *
 from weahtr.transform import *
 from weahtr.dataloader import *
-import pytesseract
 
 class model_loader:
   def load_trocr(processor_model, encoder_model, device, train = True):
@@ -144,6 +161,61 @@ class model:
     confidence = math.exp(return_dict['sequences_scores'].item())
     return text, confidence
 
+  def __predict_pylaia(self, image):
+    
+    # pylaia is built around cli assumptions
+    # and deconstructing it further is painful
+    # so write a list of files and jpg snippets
+    # to ramdisk to keep performance and as
+    # close to the original cli setup
+
+    # set output path (on docker this is a ramdisk)
+    path = self.config["pylaia"]["img_dir"][0]
+    syms = self.config["pylaia"]["syms"]
+
+    # select gpu / cuda acceleration
+    if self.config['device'] == "cuda":
+      self.config["pylaia"]["trainer.accelerator"] = "gpu"
+    else:
+      self.config["pylaia"]["trainer.accelerator"] = "cpu"
+
+    # create argument list
+    args = [
+      syms,
+      str(image)
+    ]
+
+    # unravel and format arguments
+    config = pd.json_normalize(self.config["pylaia"])
+
+    for key, value in config.items():
+        if key == "syms":
+            continue
+        args.append(f"--{key}={value[0]}")
+
+    # call the script
+    stdout, _ = call_script(decode_ctc.__file__, args)
+    #print(f"Script stdout:\n{stdout}")
+
+    # get image ids
+    img_ids = [os.path.basename(l.split(" ", maxsplit=1)[0]) for l in stdout.strip().split("\n")]
+
+    # labels (flip depending on confidence scores)
+    if self.config["pylaia"]["decode"]["print_line_confidence_scores"]:
+      labels = [l.split(" ", maxsplit=2)[2] for l in stdout.strip().split("\n")]
+    else:
+      labels = [l.split(" ", maxsplit=1)[1] for l in stdout.strip().split("\n")]
+
+    # confidence scores (flip depending on confidence scores)
+    if self.config["pylaia"]["decode"]["print_line_confidence_scores"]:
+      confidence = [l.split(" ", maxsplit=2)[1] for l in stdout.strip().split("\n")]
+      confidence = list(map(lambda x: 0 if x == "nan " else x, confidence))
+
+    else:
+      confidence = [0] * len(labels)
+
+    return img_ids, labels, confidence
+
   def __train_trocr(self):
     # create training and validation dataset
     train_df, val_df = train_test_split(
@@ -244,14 +316,17 @@ class model:
       exit()
     
   def predict(self, image):
+
     if self.model == "trocr":
       text, confidence = self.__predict_trocr(image)
     
     if self.model == "tesseract":
       text, confidence = self.__predict_tesseract(image)
 
-      #if not text or np.isnan(text): # if text is empty return placeholder
-      #  text = '//'
-      #  confidence = 0
+    # the image for pylaia is a list of images
+    # to process in batch mode
+    if self.model == "pylaia":
+      id, text, confidence =  self.__predict_pylaia(image)
+      return id, text, confidence
     
     return text, confidence

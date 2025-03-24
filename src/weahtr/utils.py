@@ -1,4 +1,6 @@
-import os, json
+import os, json, sys
+import subprocess
+from typing import List, Optional, Tuple
 import numpy as np
 import pandas as pd
 import cv2
@@ -179,7 +181,7 @@ def preview_labels(im, df, path):
    y = int(row['y'])
    conf = row['conf']
    label = row['text']
-   
+
    try:
     if conf > 85:
       cv2.putText(im, str(label) ,(x, y),
@@ -477,3 +479,19 @@ def subset_cell(image, distance = 10):
     ]
   
   return image
+
+# To call pylaia scripts
+def call_script(
+    file: str, args: List[str], timeout: Optional[int] = 60 * 3
+) -> Tuple[str, str]:
+    args = [str(a) for a in args]
+    command = [sys.executable, file] + args
+    p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    try:
+        stdout, stderr = p.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        p.kill()
+        stdout, stderr = p.communicate()
+    stdout = stdout.decode("utf-8")
+    stderr = stderr.decode("utf-8")
+    return stdout, stderr

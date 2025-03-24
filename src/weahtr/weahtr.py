@@ -323,7 +323,7 @@ class template():
     return h
   
   def __transform(self, image, h):
-    
+
     # read image and template
     im = cv2.imread(image)
     template = cv2.imread(self.template, cv2.IMREAD_GRAYSCALE)
@@ -351,15 +351,22 @@ class template():
     text_soft_val = []
     conf_soft_val = []
     majority_frac = []
-    
+    subset_name = []
+
     # generates cropped sections based upon
     # row and column locations
     t = tqdm(cells.iterrows(), total=cells.shape[0], leave = False)
     for index, cell in t:
-      t.set_description(
-        "Processing column %i, row %i " % (cell['col'], cell['row']),
-        refresh = True
-      )
+      if self.model == "pylaia":
+        t.set_description(
+          "Buffering, column %i, row %i " % (cell['col'], cell['row']),
+          refresh = True
+        )
+      else:
+        t.set_description(
+          "Processing, column %i, row %i " % (cell['col'], cell['row']),
+          refresh = True
+        )
       
       # add filename and row / col numbers
       file_name.append(prefix)
@@ -367,7 +374,7 @@ class template():
       row.append(cell['row'])
       x.append(cell['x_min'])
       y.append(cell['y_max'] - (cell['y_max'] - cell['y_min'])/4)
-      
+
       try: # traps failures to crop properly
         
         # trap end of table issues 
@@ -410,75 +417,142 @@ class template():
           cv2.imwrite(filename, crop_im)
           
         else:
-          try:
-            # transcription based upon model forwarded
-            # and selected in config
-            label, confidence = m.predict(crop_im)
-            text.append(label)
-            conf.append(round(confidence, 3))
-          except:
-            # write label output data to vectors
-            conf.append(0)
-            text.append('//')
+
+          # pylaia is hard to configure without writing to file
+          # write images to file for processing
+          if self.model == "pylaia":
+ 
+            # write pylaia sections to memory
+            filename = os.path.join(
+                self.config["pylaia"]["img_dir"][0],
+                prefix + "_" + self.config['profile_name'] + 
+                "_" + str(cell['col']) + "_" + str(cell['row']) + ".jpg"
+            )
+            cv2.imwrite(filename, crop_im)
             
-          try:
-            # soft validation runs
-            if self.config['soft_val'] > 0:
+            # tally subset names 
+            subset_name.append(filename)
+
+          else:
+
+            try:
+              # transcription based upon model forwarded
+              # and selected in config
+              #print("processing")
+              label, confidence = m.predict(crop_im)
+              text.append(label)
+              conf.append(round(confidence, 3))
+            except:
+              # write label output data to vectors
+              # print("failed run")
+              conf.append(0)
+              text.append('//')
               
-              text_tmp = []
-              conf_tmp = []
-            
-              i = 1
-              while i <= self.config['soft_val']:
-                # convert to RGB if single band
-                # grayscale/binary
-                if crop_im.shape[2] == 1:
-                    crop_im = cv2.cvtColor(crop_im, cv2.COLOR_GRAY2RGB)
-                # augment the original image
-                # using the train transform
-                crop_im_aug = train_transform(image = crop_im)['image']
+            try:
+              # soft validation runs
+              if self.config['soft_val'] > 0:
                 
-                # classification
-                label_aug, confidence_aug = m.predict(crop_im_aug)
-                text_tmp.append(label_aug)
-                conf_tmp.append(confidence_aug)
-                i += 1
+                text_tmp = []
+                conf_tmp = []
               
-              # calculate unique largest fraction
-              tmp_frac = round(1 - len(list(set(text_tmp)))/self.config['soft_val'], 3)
-              
-              # add the number of classes detected
-              majority_frac.append(tmp_frac)
-              
-              label_aug = most_common(text_tmp)
-              conf_aug = np.average(conf_tmp)
-              text_soft_val.append(label_aug)
-              conf_soft_val.append(round(conf_aug, 3))
-          except:
-            majority_frac.append(0)
-            text_soft_val.append('//')
-            conf_soft_val.append(0)
+                i = 1
+                while i <= self.config['soft_val']:
+                  # convert to RGB if single band
+                  # grayscale/binary
+                  if crop_im.shape[2] == 1:
+                      crop_im = cv2.cvtColor(crop_im, cv2.COLOR_GRAY2RGB)
+                  # augment the original image
+                  # using the train transform
+                  crop_im_aug = train_transform(image = crop_im)['image']
+                  
+                  # classification
+                  label_aug, confidence_aug = m.predict(crop_im_aug)
+                  text_tmp.append(label_aug)
+                  conf_tmp.append(confidence_aug)
+                  i += 1
+                
+                # calculate unique largest fraction
+                tmp_frac = round(1 - len(list(set(text_tmp)))/self.config['soft_val'], 3)
+                
+                # add the number of classes detected
+                majority_frac.append(tmp_frac)
+                
+                label_aug = most_common(text_tmp)
+                conf_aug = np.average(conf_tmp)
+                text_soft_val.append(label_aug)
+                conf_soft_val.append(round(conf_aug, 3))
+            except:
+              majority_frac.append(0)
+              text_soft_val.append('//')
+              conf_soft_val.append(0)
       except:
        # Continue to next iteration
        continue
-    
+
     if not slices:
       
+      # separate workflow for pylaia as forwarding
+      # images directly is hard
+      if self.model == "pylaia":
+
+        # join string
+        subset_name_txt = "\n".join(subset_name)
+
+        # write a file list (txt) to file (memory)
+        with open(os.path.join(self.config["pylaia"]["img_dir"][0],"tmp.txt"), "w") as f:
+          f.write(subset_name_txt)
+
+        # process the data
+        file_name_tmp, text, conf = m.predict(
+          os.path.join(self.config["pylaia"]["img_dir"][0],"tmp.txt")
+        )
+
+        # pylaia soft validation is too hard
+        # provide fill values instead
+        text_soft_val = "//"
+        conf_soft_val = 0 * len(text)
+        majority_frac = 0 * len(text)
+
+        # the order of files is not respected
+        # by batch processing, merge on the
+        # subset file name to retain proper order
+        # (see below)
+        meta_data = pd.DataFrame(
+                {
+                'col':col,
+                'row':row,
+                'x': x,
+                'y': y,
+                'file': file_name,
+                'subset': list(map(lambda x: os.path.basename(x), subset_name))
+                }
+              )
+        
+        predictions = pd.DataFrame({
+          'text': text,
+          'conf': conf,
+          'subset': file_name_tmp
+        })
+
       # concat data into pandas data frame
-      df = pd.DataFrame(
-        {'text':text,
-         'conf': conf,
-         'text_val': text_soft_val,
-         'conf_val': conf_soft_val,
-         'majority_frac': majority_frac,
-         'col':col,
-         'row':row,
-         'x': x,
-         'y': y,
-         'file':file_name
-        }
-      )
-    
+      if self.model == "pylaia":
+        df = pd.merge(meta_data, predictions, how = "left")
+        df = df.drop(columns=["subset"])
+      else:
+        df = pd.DataFrame(
+          {'text':text,
+          'conf': conf,
+          'text_val': text_soft_val,
+          'conf_val': conf_soft_val,
+          'majority_frac': majority_frac,
+          'col':col,
+          'row':row,
+          'x': x,
+          'y': y,
+          'file':file_name
+          }
+        )
+
       # construct path
       filename = os.path.join(
         self.label_path,
@@ -650,11 +724,12 @@ class template():
     # shitty setup, should be fixed - read up on class
     # inheritance
     m = model(self.model, self.config_file)
-    
+
     # loop over all homography files / images
     # and transform, slice and label the data
-    for image, h in tqdm(self.homography.items(), desc="Processing data  "):
-        
+    #for image, h in tqdm(self.homography.items(), desc="Processing data  "):
+    for image, h in self.homography.items():
+
       # extract basename image
       basename = os.path.basename(image)
       pathname, _ = os.path.splitext(basename)
@@ -669,7 +744,7 @@ class template():
           cells,
           pathname,
           slices,
-          m = m, # forward the model
+          m = m, # forward the model (name)
           f = f # forward a post-processing function
       )
       

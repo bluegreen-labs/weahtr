@@ -1,7 +1,7 @@
 name: weahtr
 channels:
-  - conda-forge # to be OSS stay away from default
-  - nodefaults
+  - conda-forge
+  - defaults
   
 # functional PyLaia setup
 
@@ -24,6 +24,8 @@ dependencies:
   - pyyaml
 # ML components
   - pytorch-lightning
+  - conda-forge::pytorch
+  - conda-forge::torchvision
   - tiktoken
   - protobuf
   - albumentations
@@ -37,7 +39,5 @@ dependencies:
   - tesseract
   - pip:
      - evaluate
-     - torch
-     - torchvision
      - nnutils-pytorch-cuda
      - pylaia
