@@ -7,7 +7,7 @@ channels:
 
 dependencies:
 # General python settings
-  - python==3.8
+  - python==3.10
   - conda
   - wheel
   - pip
