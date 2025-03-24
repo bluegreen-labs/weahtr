@@ -22,8 +22,7 @@ t = weahtr.template(
   template = os.path.join(base, "demo/format_1/format_1.jpg"),
   config = os.path.join(base, "demo/format_1/format_1.yml"),
   guides = os.path.join(base,"demo/format_1/format_1_full.json"),
-  method = "features",
-  model = "tesseract"
+  method = "features"
 )
 
 # match all templates, write homography datat to file
@@ -36,16 +35,18 @@ t = weahtr.template(
 # config file and a custom pre-processing
 # function
 
-# define custom function
-def custom_function(image):
-  image = remove_lines(image, mean_fill = True)
-  image = binarize(image, window_size = 101, C = 15)
-  image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+# define custom function to resize
+# height (for pylaia)
+def custom_function(image, height = 128):
+  (h, w) = image.shape[:2]
+  r = height / float(h)
+  dim = (int(w * r), height)
+  image = cv2.resize(image, dim)
   return(image)
 
 # transcribe the first two columns
 labels = t.process(
-  model = "tesseract",
+  model = "pylaia",
   preview = True,
   f = custom_function
 )

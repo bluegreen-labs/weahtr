@@ -98,8 +98,15 @@ To spin up a GPU docker image and drop into the command prompt use in the
 project directory:
 
 ```bash
-docker run -it --rm --gpus all -v $(pwd):/data weahtr bash
+docker run -it --rm --gpus all -v $(pwd):/data --tmpfs /tmp_images weahtr bash
 ```
+
+> [!NOTE]
+> The command spins up a ramdisk `/tmp_images` for use with `Pylaia`. This is
+> is advised as the pylaia routine would generate large amounts of files to
+> be written to disk. This genenerates wear on disks and limits I/O. You can
+> alter these settings (the img_dir parameter) in the config file, but it
+> is not advised.
 
 For independent installs using conda
 

@@ -123,3 +123,24 @@ trocr:
  custom_path: "/data/models/TrOCR/" # Docker path
  model: "microsoft/trocr-base-stage1"
  processor: "microsoft/trocr-base-handwritten"
+
+# Pylaia configuration settings are taken
+# from the prediction settings variables
+# https://atr.pages.teklia.com/pylaia/pylaia/usage/prediction/
+# [use full paths to refer to model components]
+pylaia:
+  syms: /data/models/pylaia/PCM/syms_wind.txt
+  img_dir:
+    - /tmp_images
+  data:
+    batch_size: 4
+    color_mode: "L"
+  common:
+    experiment_dirname: /data/models/pylaia/PCM
+    model_filename: /data/models/pylaia/PCM/model
+  decode:
+    temperature: 1.0
+    convert_spaces: True
+    print_line_confidence_scores: False
+  trainer:
+    gpus: 1
